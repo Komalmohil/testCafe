@@ -47,7 +47,7 @@ router.get(
     requireAuth,
     adminOnly,
     async (req, res) => {
-        const Product = require("../models/Product");
+        const Product = require("../models/product");
         const products = await Product.find().sort({ createdAt: -1 });
 
         res.render("admin/addProduct", { products });
@@ -62,7 +62,14 @@ router.post(
     upload.single("image"),
     adminController.postAddProduct
 );
+/* ================= DELETE PRODUCT ================= */
 
+router.post(
+    "/products/delete/:id",
+    requireAuth,
+    adminOnly,
+    adminController.deleteProduct
+);
 
 /* ================= PRODUCT STATUS ================= */
 

@@ -33,7 +33,6 @@ body{
     margin-bottom:30px;
 }
 
-/* ✅ FIXED BUTTON */
 .add-product-btn{
     background:var(--admin-red);
     color:white;
@@ -43,6 +42,7 @@ body{
     font-weight:bold;
     transition:.3s;
 }
+
 .add-product-btn:hover{
     opacity:.9;
 }
@@ -107,6 +107,7 @@ td{
     font-size:.75rem;
     font-weight:bold;
 }
+
 .status-available{background:#d4edda;color:#155724;}
 .status-soldout{background:#f8d7da;color:#721c24;}
 
@@ -118,132 +119,215 @@ td{
     display:inline-block;
     margin-left:5px;
 }
+
+select{
+    padding:5px;
+    border-radius:5px;
+}
 </style>
 
 
 <div class="container">
 
-    <div class="dashboard-header">
-        <div>
-            <h1>Cafe Control Hub <span class="pulse-dot"></span></h1>
-            <p>Admin Dashboard</p>
-        </div>
+<div class="dashboard-header">
+<div>
+<h1>Cafe Control Hub <span class="pulse-dot"></span></h1>
+<p>Admin Dashboard</p>
+</div>
 
-        <!-- ✅✅✅ MAIN FIX HERE -->
-        <a href="/admin/add-product" class="add-product-btn">
-            + Add Product
-        </a>
+<a href="/admin/add-product" class="add-product-btn">
++ Add Product
+</a>
 
-    </div>
-
-
-    <!-- ===== STATS ===== -->
-    <div class="stats-grid">
-        <div class="order-card">
-            <h3>₹<%= stats.totalRevenue %></h3>
-            <p>Revenue</p>
-        </div>
-
-        <div class="order-card">
-            <h3><%= stats.activeOrders %></h3>
-            <p>Active Orders</p>
-        </div>
-
-        <div class="order-card">
-            <h3><%= stats.orderCount %></h3>
-            <p>Total Orders</p>
-        </div>
-    </div>
+</div>
 
 
-    <!-- ===== TABS ===== -->
-    <div class="tabs">
-        <div class="tab active" onclick="switchTab('orders-section',event)">Live Orders</div>
-        <div class="tab" onclick="switchTab('menu-section',event)">Manage Menu</div>
-    </div>
+<!-- ===== STATS ===== -->
+<div class="stats-grid">
+
+<div class="order-card">
+<h3>₹<%= stats.totalRevenue %></h3>
+<p>Revenue</p>
+</div>
+
+<div class="order-card">
+<h3><%= stats.activeOrders %></h3>
+<p>Active Orders</p>
+</div>
+
+<div class="order-card">
+<h3><%= stats.orderCount %></h3>
+<p>Total Orders</p>
+</div>
+
+</div>
 
 
-    <!-- ===== ORDERS ===== -->
-    <div id="orders-section" class="tab-content active">
-        <div class="order-card">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Customer</th>
-                        <th>Items</th>
-                        <th>Total</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-                <% orders.forEach(order => { %>
-                    <tr>
-                        <td>
-                            <strong><%= order.user ? order.user.username : 'Guest' %></strong><br>
-                            <small><%= order.user ? order.user.email : '' %></small>
-                        </td>
-
-                        <td>
-                            <% order.items.forEach(item => { %>
-                                <div><%= item.quantity %>x <%= item.productName %></div>
-                            <% }) %>
-                        </td>
-
-                        <td>₹<%= order.totalAmount %></td>
-
-                        <td><%= order.status %></td>
-                    </tr>
-                <% }) %>
-                </tbody>
-
-            </table>
-        </div>
-    </div>
+<!-- ===== TABS ===== -->
+<div class="tabs">
+<div class="tab active" onclick="switchTab('orders-section',event)">Live Orders</div>
+<div class="tab" onclick="switchTab('menu-section',event)">Manage Menu</div>
+</div>
 
 
-    <!-- ===== MENU ===== -->
-    <div id="menu-section" class="tab-content">
-        <div class="order-card">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Product</th>
-                        <th>Price</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
+<!-- ===== ORDERS ===== -->
+<div id="orders-section" class="tab-content active">
 
-                <tbody>
-                <% products.forEach(product => { %>
-                    <tr>
-                        <td><strong><%= product.name %></strong></td>
-                        <td>₹<%= product.price %></td>
-                        <td>
-                            <span class="status-badge <%= product.isActive ? 'status-available':'status-soldout' %>">
-                                <%= product.isActive ? 'Available':'Sold Out' %>
-                            </span>
-                        </td>
-                    </tr>
-                <% }) %>
-                </tbody>
+<div class="order-card">
 
-            </table>
-        </div>
-    </div>
+<table>
+
+<thead>
+<tr>
+<th>Customer</th>
+<th>Items</th>
+<th>Total</th>
+<th>Status</th>
+</tr>
+</thead>
+
+<tbody>
+
+<% orders.forEach(order => { %>
+
+<tr>
+
+<td>
+<strong><%= order.user ? order.user.username : 'Guest' %></strong><br>
+<small><%= order.user ? order.user.email : '' %></small>
+</td>
+
+<td>
+<% order.items.forEach(item => { %>
+<div><%= item.quantity %>x <%= item.productName %></div>
+<% }) %>
+</td>
+
+<td>₹<%= order.totalAmount %></td>
+
+<td>
+<select onchange="updateStatus('<%= order._id %>', this.value)">
+
+<option value="Pending" <%= order.status === 'Pending' ? 'selected':'' %>>
+Pending
+</option>
+
+<option value="Preparing" <%= order.status === 'Preparing' ? 'selected':'' %>>
+Preparing
+</option>
+
+<option value="Completed" <%= order.status === 'Completed' ? 'selected':'' %>>
+Completed
+</option>
+
+<option value="Cancelled" <%= order.status === 'Cancelled' ? 'selected':'' %>>
+Cancelled
+</option>
+
+</select>
+</td>
+
+</tr>
+
+<% }) %>
+
+</tbody>
+
+</table>
+
+</div>
+
+</div>
+
+
+<!-- ===== MENU ===== -->
+<div id="menu-section" class="tab-content">
+
+<div class="order-card">
+
+<table>
+
+<thead>
+<tr>
+<th>Product</th>
+<th>Price</th>
+<th>Status</th>
+</tr>
+</thead>
+
+<tbody>
+
+<% products.forEach(product => { %>
+
+<tr>
+
+<td><strong><%= product.name %></strong></td>
+
+<td>₹<%= product.price %></td>
+
+<td>
+<span class="status-badge <%= product.isActive ? 'status-available':'status-soldout' %>">
+<%= product.isActive ? 'Available':'Sold Out' %>
+</span>
+</td>
+
+</tr>
+
+<% }) %>
+
+</tbody>
+
+</table>
+
+</div>
+
+</div>
 
 </div>
 
 
 <script>
+
 function switchTab(sectionId,event){
-    document.querySelectorAll('.tab-content')
-        .forEach(el=>el.classList.remove('active'));
 
-    document.querySelectorAll('.tab')
-        .forEach(el=>el.classList.remove('active'));
+document.querySelectorAll('.tab-content')
+.forEach(el=>el.classList.remove('active'));
 
-    document.getElementById(sectionId).classList.add('active');
-    event.currentTarget.classList.add('active');
+document.querySelectorAll('.tab')
+.forEach(el=>el.classList.remove('active'));
+
+document.getElementById(sectionId).classList.add('active');
+
+event.currentTarget.classList.add('active');
+
 }
+
+
+/* ORDER STATUS UPDATE */
+
+function updateStatus(orderId,status){
+
+fetch(`/admin/update-order-status/${orderId}`,{
+
+method:"POST",
+
+headers:{
+"Content-Type":"application/json"
+},
+
+body:JSON.stringify({status})
+
+})
+.then(res=>res.json())
+.then(data=>{
+
+if(data.success){
+alert("Order Status Updated");
+}
+
+})
+.catch(err=>console.log(err));
+
+}
+
 </script>

@@ -36,7 +36,7 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
 
 // ✅ serve uploaded images (IMPORTANT)
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/uploads", express.static(path.join(__dirname, "../public/uploads")));
 
 /* ================= SESSION ================= */
 app.use(sessionMiddleware);

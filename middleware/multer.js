@@ -4,7 +4,7 @@ const fs = require("fs");
 
 /* ================= UPLOAD PATH ================= */
 
-const uploadPath = path.join(__dirname, "..", "uploads");
+const uploadPath = path.join(__dirname,"../public/uploads");
 
 /* create folder if not exists */
 if (!fs.existsSync(uploadPath)) {

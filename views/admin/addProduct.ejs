@@ -83,20 +83,23 @@
         <% } %>
 
         <img 
-            src="/uploads/<%= product.image %>" 
+            src="<%= product.image %>" 
             width="100"
             alt="<%= product.name %>"
         >
 
         <br><br>
 
-        <a 
-            href="/admin/products/delete/<%= product._id %>"
-            onclick="return confirm('Delete this product?')"
-            class="delete-btn"
-        >
-            Delete
-        </a>
+        <form 
+    action="/admin/products/delete/<%= product._id %>" 
+    method="POST"
+    style="display:inline;"
+    onsubmit="return confirm('Delete this product?')"
+>
+    <button type="submit" class="delete-btn">
+        Delete
+    </button>
+</form>
 
     </div>
 

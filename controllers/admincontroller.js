@@ -169,3 +169,29 @@ exports.postAddProduct = async (req, res) => {
         });
     }
 };
+
+/* ================= DELETE PRODUCT ================= */
+
+exports.deleteProduct = async (req, res) => {
+    try {
+        const productId = req.params.id;
+
+        const deletedProduct = await Product.findByIdAndDelete(productId);
+
+        if (!deletedProduct) {
+            return res.status(404).render("error", {
+                message: "Product not found"
+            });
+        }
+
+        // redirect back
+        res.redirect("/admin/add-product");
+
+    } catch (err) {
+        console.error("Delete Product Error:", err);
+
+        res.status(500).render("error", {
+            message: "Failed to delete product"
+        });
+    }
+};

@@ -110,11 +110,17 @@ exports.updateOrderStatus = async (req, res) => {
             { new: true }
         );
 
-        res.redirect("/admin/dashboard");
+        res.json({
+            success: true,
+            message: "Order status updated"
+        });
 
     } catch (err) {
         console.error("Update Status Error:", err);
-        res.status(500).send("Status update failed");
+
+        res.status(500).json({
+            success: false
+        });
     }
 };
 
