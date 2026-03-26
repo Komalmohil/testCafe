@@ -17,7 +17,6 @@ const transporter = nodemailer.createTransport({
 
 /* ================= HELPER: COMPLETE LOGIN PROCESS ================= */
 const proceedToLogin = async (user, req, res) => {
-    /* ===== CART SYNC ===== */
     if (req.session.cart && req.session.cart.length > 0) {
         let userCart = await Cart.findOne({ user: user._id });
         if (!userCart) {
@@ -47,7 +46,6 @@ const proceedToLogin = async (user, req, res) => {
         secure: process.env.NODE_ENV === "production"
     });
 
-    // ✅ SEND JSON SUCCESS INSTEAD OF REDIRECT
     const redirectUrl = user.role === "admin" ? "/admin/dashboard" : "/products";
     return res.json({ success: true, redirectUrl });
 };
@@ -151,8 +149,6 @@ const signup = async (req, res) => {
             html: `<h3>Your OTP is: ${otp}</h3>`
         });
 
-        // ✅ If your Signup also uses AJAX, send JSON. 
-        // If it's a standard form, keep res.render but for consistency JSON is better.
         res.json({ success: true, message: "OTP sent!", email });
 
     } catch (err) {
@@ -194,22 +190,19 @@ const login = async (req, res) => {
         email = email.trim().toLowerCase();
         const user = await User.findOne({ email });
 
-        // ✅ Check if user exists and password is correct
         if (!user || !(await bcrypt.compare(password, user.password))) {
             return res.status(401).json({ success: false, message: "Invalid email or password." });
         }
 
-        // --- ADMIN BYPASS ---
         if (user.role === "admin") {
             return await proceedToLogin(user, req, res);
         }
 
-        // --- USER VERIFICATION CHECK ---
         if (!user.isVerified) {
             return res.status(403).json({ 
                 success: false, 
                 message: "Please verify your email before logging in.",
-                isUnverified: true // Frontend can use this to show OTP modal/page
+                isUnverified: true 
             });
         }
 

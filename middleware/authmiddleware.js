@@ -14,10 +14,8 @@ exports.checkAuth = async (req, res, next) => {
             return next();
         }
 
-        // ✅ Verify token
         const decoded = jwt.verify(token, SECRET_KEY);
 
-        // ✅ Fetch user from DB
         const user = await User.findById(decoded.id).select("-password");
 
         if (!user) {
@@ -27,7 +25,6 @@ exports.checkAuth = async (req, res, next) => {
             return next();
         }
 
-        // ✅ SET USER PROPERLY
         req.user = user;
         res.locals.user = user;
 

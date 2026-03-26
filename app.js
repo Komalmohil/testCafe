@@ -3,8 +3,8 @@ require("dotenv").config();
 
 /* ================= IMPORTS ================= */
 const express = require("express");
-const http = require("http"); // Required for Socket.io
-const { Server } = require("socket.io"); // Required for Socket.io
+const http = require("http"); 
+const { Server } = require("socket.io"); 
 const path = require("path");
 const morgan = require("morgan");
 const cookieParser = require("cookie-parser");
@@ -20,8 +20,8 @@ const { checkAuth } = require("./controllers/authcontroller");
 
 /* ================= APP & SERVER INIT ================= */
 const app = express();
-const server = http.createServer(app); // Create HTTP server
-const io = new Server(server); // Initialize Socket.io
+const server = http.createServer(app); 
+const io = new Server(server); 
 const PORT = process.env.PORT || 3000;
 
 /* ================= DATABASE ================= */
@@ -57,11 +57,9 @@ app.use(session({
 }));
 
 /* ================= SOCKET.IO CONFIG ================= */
-// Make 'io' accessible in all controllers via req.app.get('socketio')
 app.set('socketio', io);
 
 io.on("connection", (socket) => {
-    // When a user connects, they join a private room named after their User ID
     socket.on("join", (userId) => {
         if (userId) {
             socket.join(userId);
@@ -74,7 +72,6 @@ io.on("connection", (socket) => {
     });
 });
 
-/* 🔥 APPLY AUTH GLOBALLY */
 app.use(checkAuth);
 
 /* ================= GLOBAL EJS VARIABLES ================= */
@@ -107,7 +104,6 @@ app.use((err, req, res, next) => {
 });
 
 /* ================= START SERVER ================= */
-// CRITICAL: Use server.listen, NOT app.listen
 server.listen(PORT, () => {
     console.log(`✅ Server & Socket running at http://localhost:${PORT}`);
 });
