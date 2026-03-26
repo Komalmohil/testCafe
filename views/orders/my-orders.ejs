@@ -1,0 +1,214 @@
+<%- include('../partials/header') %>
+<link rel="stylesheet" href="/css/style.css">
+
+<!-- ✅ TOAST STYLE -->
+<style>
+#toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 9999;
+}
+.toast {
+    background: #2a2929;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    margin-top: 10px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    border-left: 5px solid #ffcc00;
+    animation: slideIn 0.4s ease-out, fadeOut 0.5s ease-in 2.5s forwards;
+}
+.toast.success { border-left-color: #28a745; }
+.toast.error { border-left-color: #ff4d4d; }
+
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; visibility: hidden; }
+}
+/* ================= FORCE HEADER VISIBILITY ================= */
+header {
+    width: 100%;
+    background: #ffffff !important; /* Force solid white */
+    border-bottom: 1px solid #e2e8f0 !important; /* Light gray bottom border */
+    padding: 15px 0 !important;
+    position: relative;
+    z-index: 1000;
+}
+
+/* Target the Logo */
+header a, 
+header .logo, 
+header .brand-name {
+    color: #4a3728 !important; /* Deep Coffee Brown */
+    text-decoration: none !important;
+    font-weight: 700 !important;
+}
+
+/* Target all Navigation Links (Menu, Login, Signup) */
+header .nav-link, 
+header nav a, 
+header ul li a {
+    color: #2d3748 !important; /* Dark Slate Gray */
+    font-weight: 500 !important;
+    text-decoration: none !important;
+    margin: 0 15px !important;
+    transition: color 0.2s !important;
+}
+
+header .nav-link:hover, 
+header nav a:hover {
+    color: #d4a373 !important; /* Tan/Latte color on hover */
+}
+
+/* Target the Cart text and Icon */
+header .cart-link, 
+header .cart-icon,
+header #cart-count {
+    color: #2d3748 !important;
+}
+
+/* If you have a user profile name showing */
+header .user-name {
+    color: #4a3728 !important;
+    font-weight: 600 !important;
+}
+</style>
+
+<div class="orders-container">
+    <h1 style="margin-bottom: 30px;">
+        <i class="fas fa-history"></i> My Order History
+    </h1>
+
+    <% if (orders && orders.length > 0) { %>
+
+        <% orders.forEach(order => { %>
+
+            <div class="order-card">
+
+                <div class="order-header">
+                    <div>
+                        <strong>
+                            Order #<%= order._id.toString().slice(-6).toUpperCase() %>
+                        </strong>
+
+                        <div style="font-size:0.8rem;color:#999; margin-top: 5px;">
+                            <i class="far fa-clock"></i> 
+                            <%= order.createdAt 
+                                ? new Date(order.createdAt).toLocaleString() 
+                                : "N/A" %>
+                        </div>
+                    </div>
+
+                    <span class="status-badge status-<%= (order.status || 'pending').toLowerCase() %>">
+                        <%= order.status || "Pending" %>
+                    </span>
+                </div>
+
+                <ul class="order-items">
+                    <% if (order.items && order.items.length > 0) { %>
+                        <% order.items.forEach(item => { %>
+                            <li class="item-row">
+                                <span>
+                                    <i class="fas fa-utensils" style="opacity:0.5;"></i>
+                                    <%= item.name %> (x<%= item.quantity %>)
+                                </span>
+
+                                <span>
+                                    ₹<%= (item.price * item.quantity).toFixed(2) %>
+                                </span>
+                            </li>
+                        <% }) %>
+                    <% } else { %>
+                        <li>No items found</li>
+                    <% } %>
+                </ul>
+
+                <div class="order-footer">
+
+                    <!-- ✅ REORDER BUTTON -->
+                    <button 
+                        class="reorder-btn" 
+                        onclick="reorder('<%= order._id %>', this)"
+                    >
+                        <i class="fas fa-redo-alt"></i> Reorder
+                    </button>
+
+                    <div class="total-amt">
+                        Total: <strong>₹<%= parseFloat(order.totalAmount || 0).toFixed(2) %></strong>
+                    </div>
+
+                </div>
+
+            </div>
+
+        <% }) %>
+
+    <% } else { %>
+
+        <div class="empty-msg">
+            <h2>No orders found!</h2>
+            <a href="/products">Browse Menu</a>
+        </div>
+
+    <% } %>
+</div>
+
+<!-- ✅ TOAST CONTAINER -->
+<div id="toast-container"></div>
+
+<script>
+function showToast(message, type = "success") {
+    const container = document.getElementById("toast-container");
+
+    const toast = document.createElement("div");
+    toast.className = "toast " + type;
+    toast.innerText = message;
+
+    container.appendChild(toast);
+
+    setTimeout(() => toast.remove(), 3000);
+}
+
+/* ================= ✅ FIXED REORDER ================= */
+async function reorder(orderId, btn) {
+    try {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
+
+        const res = await fetch(`/products/reorder/${orderId}`, {
+            method: "POST"
+        });
+
+        const data = await res.json(); // ✅ IMPORTANT FIX
+
+        if (data.success) {
+
+            // ✅ MOST IMPORTANT FIX: update localStorage
+            localStorage.setItem("cafe_cart", JSON.stringify(data.items));
+
+            showToast("✅ Items added to cart!");
+
+            setTimeout(() => {
+                window.location.href = "/cart";
+            }, 1200);
+
+        } else {
+            showToast("❌ Failed to reorder", "error");
+        }
+
+    } catch (err) {
+        console.error(err);
+        showToast("❌ Reorder failed. Try again.", "error");
+
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-redo-alt"></i> Reorder';
+    }
+}
+</script>
+
+<%- include('../partials/footer') %>

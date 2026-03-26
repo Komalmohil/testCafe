@@ -1,18 +1,183 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Food Menu</title>
+    <title>Food Menu - FullStack Cafe</title>
     <link rel="stylesheet" href="/css/style.css">
+    <style>
+        /* --- Toast Notification Styling --- */
+        #toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+        }
+        .toast {
+            background: #2a2929;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            margin-top: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-left: 5px solid #ffcc00;
+            font-weight: 500;
+            animation: slideIn 0.4s ease-out, fadeOut 0.5s ease-in 2.5s forwards;
+        }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; visibility: hidden; } }
+        
+        .add-to-cart-btn:active:not(:disabled) { transform: scale(0.95); }
+        .add-to-cart-btn:disabled {
+            background-color: #ccc !important;
+            cursor: not-allowed;
+            color: #666;
+        }
+
+        /* --- Image Popup Modal Styling --- */
+        .modal {
+            display: none; 
+            position: fixed;
+            z-index: 10000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            backdrop-filter: blur(5px);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            position: relative;
+            animation: zoomIn 0.3s ease;
+        }
+        @keyframes zoomIn { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        
+        .close-modal {
+            position: absolute;
+            right: 15px;
+            top: 10px;
+            font-size: 28px;
+            cursor: pointer;
+            color: #333;
+        }
+        .modal-img {
+            width: 100%;
+            max-height: 250px;
+            object-fit: cover;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+        .quantity-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .qty-btn {
+            background: #ffcc00;
+            border: none;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .qty-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        #modal-qty {
+            font-size: 20px;
+            font-weight: bold;
+            min-width: 30px;
+        }
+        .modal-confirm-btn {
+            background: #2a2929;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            width: 100%;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .modal-confirm-btn:disabled { background: #ccc; cursor: not-allowed; }
+
+        .food-img { cursor: pointer; transition: 0.3s; }
+        .food-img:hover { opacity: 0.8; }
+
+        #modal-description {
+            color: #666;
+            font-size: 0.95rem;
+            margin: 10px 0;
+            line-height: 1.4;
+        }
+
+        /* --- Stock Badge --- */
+        .stock-label {
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        /* --- Pagination Styling --- */
+        .pagination-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin: 40px 0;
+            font-family: sans-serif;
+        }
+        .pag-btn {
+            background: #f1f1f1;
+            border: 1px solid #ccc;
+            color: #2a2929;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            font-size: 1.5rem;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+        .pag-btn:hover:not(:disabled) {
+            background: #2a2929;
+            color: #ffcc00;
+            border-color: #2a2929;
+            transform: scale(1.1);
+        }
+        .pag-btn:disabled {
+            opacity: 0.2;
+            cursor: not-allowed;
+        }
+        #page-info {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #2a2929;
+            min-width: 60px;
+            text-align: center;
+        }
+    </style>
 </head>
 <body>
 
 <%- include('partials/header') %>
 
-<!-- ================= TOP CONTROLS ================= -->
-
 <div class="top-controls">
-
-    <!-- CATEGORY -->
     <div class="category-nav">
         <a href="/products?category=all&search=<%= search %>" class="<%= category==='all'?'active':'' %>">All</a>
         <a href="/products?category=junkfood&search=<%= search %>" class="<%= category==='junkfood'?'active':'' %>">JunkFood</a>
@@ -23,113 +188,229 @@
         <a href="/products?category=southindian&search=<%= search %>" class="<%= category==='southindian'?'active':'' %>">🍲 South Indian</a>
     </div>
 
-    <!-- SEARCH -->
     <form action="/products" method="GET" class="search-container">
         <input type="text" name="search" placeholder="Search food..." value="<%= search %>">
         <input type="hidden" name="category" value="<%= category %>">
         <button type="submit">Search</button>
     </form>
-
 </div>
 
+<div class="container" id="food-items-grid"></div>
 
-<!-- ================= PRODUCT GRID ================= -->
+<div class="pagination-container" id="pagination-controls">
+    <button class="pag-btn" id="prev-page-btn" onclick="changePage(-1)">&lt;</button>
+    <span id="page-info">1 / 1</span>
+    <button class="pag-btn" id="next-page-btn" onclick="changePage(1)">&gt;</button>
+</div>
 
-<div class="container">
-
-<% if (foodItems && foodItems.length > 0) { %>
-
-    <% foodItems.forEach(food => { %>
-
-        <div class="card">
-
-            <img src="<%= food.image %>" 
-                 alt="<%= food.name %>" 
-                 class="food-img">
-
-            <h3><%= food.name %></h3>
-
-            <!-- ✅ DESCRIPTION ADDED -->
-            <p class="food-description">
-                <%= food.description 
-                    ? food.description 
-                    : "Delicious freshly prepared food made with quality ingredients." %>
-            </p>
-
-            <p class="price">₹ <%= food.price %></p>
-
-            <button class="cart-btn"
-                    data-name="<%= food.name %>"
-                    data-price="<%= food.price %>"
-                    data-image="<%= food.image %>">
-                Add To Cart 🛒
-            </button>
-
+<div id="productModal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal" onclick="closeModal()">&times;</span>
+        <img id="modal-img" src="" alt="" class="modal-img">
+        <h2 id="modal-title">Product Name</h2>
+        <p id="modal-description"></p>
+        <p id="modal-price" style="color: #e67e22; font-weight: bold; margin-bottom: 5px;"></p>
+        <p id="modal-stock-status" style="font-size: 0.85rem; margin-bottom: 10px;"></p>
+        
+        <div class="quantity-controls" id="modal-qty-controls">
+            <button class="qty-btn" id="qty-minus" onclick="updateQty(-1)">-</button>
+            <span id="modal-qty">1</span>
+            <button class="qty-btn" id="qty-plus" onclick="updateQty(1)">+</button>
         </div>
-
-    <% }) %>
-
-<% } else { %>
-
-    <p>No food items found.</p>
-
-<% } %>
-
+        <button id="modal-add-btn" class="modal-confirm-btn">Add to Cart 🛒</button>
+    </div>
 </div>
 
+<div id="toast-container"></div>
 
-<!-- ================= PAGINATION ================= -->
-
-<div class="pagination">
-<% for(let i = 1; i <= totalPages; i++){ %>
-    <a href="/products?page=<%= i %>&category=<%= category %>&search=<%= search %>"
-       class="<%= currentPage === i ? 'active' : '' %>">
-       <%= i %>
-    </a>
-<% } %>
-</div>
-
-
-<!-- ================= ADD TO CART SCRIPT ================= -->
 
 <script>
-document.addEventListener("DOMContentLoaded", () => {
+    // --- PAGINATION LOGIC ---
+    const allItems = <%- JSON.stringify(foodItems || []) %>;
+    const itemsPerPage = 8; 
+    let currentPage = 1;
 
-    const buttons = document.querySelectorAll(".cart-btn");
+    function renderPage() {
+        const grid = document.getElementById('food-items-grid');
+        const pageInfo = document.getElementById('page-info');
+        const totalPages = Math.ceil(allItems.length / itemsPerPage) || 1;
 
-    buttons.forEach(btn => {
-        btn.addEventListener("click", () => {
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
 
-            const item = {
-                name: btn.dataset.name,
-                price: btn.dataset.price,
-                image: btn.dataset.image
-            };
+        const start = (currentPage - 1) * itemsPerPage;
+        const end = start + itemsPerPage;
+        const itemsToShow = allItems.slice(start, end);
 
-            fetch("/products/add-to-cart", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(item)
-            })
-            .then(res => res.json())
-            .then(data => {
+        document.getElementById('prev-page-btn').disabled = (currentPage === 1);
+        document.getElementById('next-page-btn').disabled = (currentPage === totalPages || allItems.length === 0);
 
-                if (data.success) {
-                    alert(`✅ Added to cart! Total items: ${data.cartCount}, Total ₹${data.totalPrice}`);
-                } else {
-                    alert("❌ Login required");
-                    window.location.href = "/login";
-                }
+        pageInfo.innerText = `${currentPage} / ${totalPages}`;
 
-            })
-            .catch(err => console.error("Error:", err));
-        });
+        if (allItems.length === 0) {
+            grid.innerHTML = `<div style="text-align:center; width:100%; padding:50px;"><h3>No items found.</h3></div>`;
+            document.getElementById('pagination-controls').style.display = 'none';
+            return;
+        }
+
+        document.getElementById('pagination-controls').style.display = totalPages > 1 ? 'flex' : 'none';
+
+        grid.innerHTML = itemsToShow.map(food => {
+            const isSoldOut = food.stock <= 0;
+            return `
+                <div class="card" style="opacity: ${isSoldOut ? '0.7' : '1'}">
+                    <img src="${food.image}" 
+                         alt="${food.name}" 
+                         class="food-img" 
+                         onclick="openProductModal('${food._id}', '${food.name}', '${food.price}', '${food.image}', \`${(food.description || 'Delicious freshly prepared food.').replace(/'/g, "\\'")}\`, ${food.stock})">
+                    
+                    <h3>${food.name}</h3>
+                    <span class="stock-label" style="color: ${isSoldOut ? '#ff4d4d' : '#2ecc71'}">
+                        ${isSoldOut ? '🔴 SOLD OUT' : '🟢 In Stock'}
+                    </span>
+                    <p class="food-description">${food.description || "Delicious freshly prepared food."}</p>
+                    <p class="price">₹ ${food.price}</p>
+                    <button class="add-to-cart-btn" 
+                            onclick="handleAddToCart(this)"
+                            data-id="${food._id}"
+                            data-name="${food.name}" 
+                            data-price="${food.price}" 
+                            data-image="${food.image}"
+                            data-stock="${food.stock}"
+                            ${isSoldOut ? 'disabled' : ''}>
+                        ${isSoldOut ? 'Out of Stock' : 'Add To Cart 🛒'}
+                    </button>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function changePage(step) {
+        currentPage += step;
+        renderPage();
+        const menuHeader = document.querySelector('.top-controls');
+        if (menuHeader) menuHeader.scrollIntoView({ behavior: 'smooth' });
+    }
+
+   function handleAddToCart(btn) {
+    const productData = {
+        productId: btn.getAttribute('data-id'), 
+        name: btn.getAttribute('data-name'),
+        price: parseFloat(btn.getAttribute('data-price')),
+        image: btn.getAttribute('data-image'),
+        quantity: 1
+    };
+
+    addToCart(productData);
+}
+
+    renderPage();
+
+    // --- MODAL & CART LOGIC ---
+    let currentProduct = null;
+    let currentQty = 1;
+    let maxStock = 0;
+
+    function openProductModal(id, name, price, image, description, stock) {
+        currentProduct = { id, name, price: parseFloat(price), image };
+        currentQty = 1;
+        maxStock = parseInt(stock);
+        
+        document.getElementById('modal-title').innerText = name;
+        document.getElementById('modal-price').innerText = `₹ ${price}`;
+        document.getElementById('modal-img').src = image;
+        document.getElementById('modal-qty').innerText = currentQty;
+        document.getElementById('modal-description').innerText = description;
+        
+        const statusEl = document.getElementById('modal-stock-status');
+        const qtyControls = document.getElementById('modal-qty-controls');
+        const addBtn = document.getElementById('modal-add-btn');
+
+        if (maxStock <= 0) {
+            statusEl.innerText = "❌ This item is currently sold out.";
+            statusEl.style.color = "#ff4d4d";
+            qtyControls.style.display = 'none';
+            addBtn.disabled = true;
+            addBtn.innerText = "Sold Out";
+        } else {
+            statusEl.innerText = `🟢 In Stock`;
+            statusEl.style.color = "#2ecc71";
+            qtyControls.style.display = 'flex';
+            addBtn.disabled = false;
+            addBtn.innerText = "Add to Cart 🛒";
+        }
+
+        document.getElementById('productModal').style.display = 'flex';
+    }
+
+    function closeModal() {
+        document.getElementById('productModal').style.display = 'none';
+    }
+
+    function updateQty(change) {
+        const nextQty = currentQty + change;
+        if (nextQty >= 1 && nextQty <= maxStock) {
+            currentQty = nextQty;
+            document.getElementById('modal-qty').innerText = currentQty;
+        } else if (nextQty > maxStock) {
+            // Keep the stock check for validation, but the user doesn't see the specific total stock on screen
+            showToast(`⚠️ Cannot add more of this item.`);
+        }
+    }
+
+    window.onclick = function(event) {
+        const modal = document.getElementById('productModal');
+        if (event.target == modal) closeModal();
+    }
+
+    document.getElementById('modal-add-btn').addEventListener('click', function() {
+        if (currentProduct && maxStock > 0) {
+            addToCart({ ...currentProduct, quantity: currentQty });
+            closeModal();
+        }
     });
 
-});
+    async function addToCart(productData) {
+    let localCart = JSON.parse(localStorage.getItem('cafe_cart')) || [];
+
+    const existingItem = localCart.find(
+        item => item.productId === productData.productId 
+    );
+
+    if (existingItem) {
+        existingItem.quantity += productData.quantity;
+    } else {
+        localCart.push(productData);
+    }
+
+    localStorage.setItem('cafe_cart', JSON.stringify(localCart));
+
+    showToast(`✅ ${productData.name} added!`);
+
+    if (typeof window.updateCartBadge === 'function') {
+        window.updateCartBadge();
+    }
+
+    try {
+        await fetch('/cart/sync', {   
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cartItems: localCart })
+        });
+    } catch (err) {
+        console.log("Sync failed (guest mode)");
+    }
+}
+
+    function showToast(message) {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.innerHTML = `<span>${message}</span>`;
+        container.appendChild(toast);
+        setTimeout(() => { toast.remove(); }, 3000);
+    }
 </script>
-
 <%- include('partials/footer') %>
-
 </body>
 </html>

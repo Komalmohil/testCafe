@@ -1,114 +1,57 @@
-// routes/adminroute.js
-
 const express = require("express");
 const router = express.Router();
-
 const adminController = require("../controllers/admincontroller");
 const { requireAuth } = require("../middleware/authMiddleware");
-const Order = require("../models/Order");
-const upload = require("../middleware/multer"); // ✅ multer middleware
+const upload = require("../middleware/multer");
 
-/* ================= ADMIN CHECK ================= */
+/* ================= ADMIN CHECK MIDDLEWARE ================= */
 const adminOnly = (req, res, next) => {
     if (req.user && req.user.role === "admin") {
         return next();
     }
-
     return res.status(403).render("error", {
         message: "Admin access required"
     });
 };
 
+// Apply these to all routes below to save space
+router.use(requireAuth);
+router.use(adminOnly);
 
 /* ================= DASHBOARD ROUTES ================= */
 
-// ✅ Admin Dashboard Page
-router.get(
-    "/dashboard",
-    requireAuth,
-    adminOnly,
-    adminController.getAdminDashboard
-);
+// Main Dashboard Page
+router.get("/dashboard", adminController.getAdminDashboard);
 
-// Dashboard API Data
-router.get(
-    "/dashboard-data",
-    requireAuth,
-    adminOnly,
-    adminController.getDashboardData
-);
+// Dashboard API Data (for auto-refresh)
+router.get("/dashboard-data", adminController.getDashboardData);
 
 
-/* ================= ADD PRODUCT ROUTES ✅ ================= */
+/* ================= PRODUCT MANAGEMENT ================= */
 
-// 👉 OPEN ADD PRODUCT PAGE
-router.get(
-    "/add-product",
-    requireAuth,
-    adminOnly,
-    async (req, res) => {
-        const Product = require("../models/product");
-        const products = await Product.find().sort({ createdAt: -1 });
+// Open Add Product Page
+router.get("/add-product", adminController.getAddProduct);
 
-        res.render("admin/addProduct", { products });
-    }
-);
+// Save Product (Multipart for Image Upload)
+router.post("/add-product", upload.single("image"), adminController.postAddProduct);
 
-// 👉 SAVE PRODUCT (FORM SUBMIT)
-router.post(
-    "/add-product",
-    requireAuth,
-    adminOnly,
-    upload.single("image"),
-    adminController.postAddProduct
-);
-/* ================= DELETE PRODUCT ================= */
+// Delete Product
+router.post("/products/delete/:id", adminController.deleteProduct);
 
-router.post(
-    "/products/delete/:id",
-    requireAuth,
-    adminOnly,
-    adminController.deleteProduct
-);
+// Toggle Availability Status (Active/Inactive)
+router.patch("/product/toggle-status/:id", adminController.toggleProductStatus);
 
-/* ================= PRODUCT STATUS ================= */
-
-router.patch(
-    "/product/toggle-status/:id",
-    requireAuth,
-    adminOnly,
-    adminController.toggleProductStatus
-);
+// ✅ NEW: Update Product Stock Quantity
+router.post("/update-stock/:id", adminController.updateProductStock);
 
 
-/* ================= ORDER STATUS UPDATE ================= */
+/* ================= ORDER MANAGEMENT ================= */
 
-router.post("/order/status", requireAuth, adminOnly, async (req, res) => {
-    try {
-        const { orderId, status } = req.body;
+// Update Order Status (Pending/Preparing/Completed)
+router.post("/update-order-status/:id", adminController.updateOrderStatus);
 
-        const updatedOrder = await Order.findByIdAndUpdate(
-            orderId,
-            { status },
-            { new: true }
-        );
+// Optional: Specific status update route for body-based requests
+router.post("/order/status", adminController.updateOrderStatus);
 
-        if (!updatedOrder) {
-            return res.status(404).json({
-                success: false,
-                message: "Order not found"
-            });
-        }
-
-        res.json({
-            success: true,
-            status: updatedOrder.status
-        });
-
-    } catch (err) {
-        console.error("Order Update Error:", err);
-        res.status(500).json({ success: false });
-    }
-});
 
 module.exports = router;

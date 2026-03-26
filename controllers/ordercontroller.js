@@ -1,68 +1,95 @@
 const Order = require("../models/Order");
+const Cart = require("../models/Cart");
+const Product = require("../models/Product");
 
-
-/* =====================================================
-   1. CHECKOUT
-===================================================== */
-exports.checkout = async (req, res) => {
+/* ================= CHECKOUT (STOCKS UPDATED) ================= */
+const checkout = async (req, res) => {
     try {
-
-        const cart = req.session.cart;
-
-        if (!cart || cart.length === 0) {
-            return res.json({
-                success: false,
-                message: "Cart empty"
-            });
-        }
-
         if (!req.user) {
-            return res.json({
-                success: false,
-                message: "Login required"
+            return res.json({ success: false, message: "Login required" });
+        }
+
+        const cartItems = req.body.cartItems;
+        if (!cartItems || cartItems.length === 0) {
+            return res.json({ success: false, message: "Cart is empty" });
+        }
+
+        let totalAmount = 0;
+        const validItems = [];
+        const stockUpdates = []; // To store bulk update operations
+
+        for (const item of cartItems) {
+            const product = await Product.findById(item.productId);
+
+            if (!product) continue;
+
+            // Check if enough stock exists before placing order
+            if (product.stock < item.quantity) {
+                return res.json({
+                    success: false,
+                    message: `Only ${product.stock} items available for ${product.name}`
+                });
+            }
+
+            totalAmount += item.price * item.quantity;
+
+            validItems.push({
+                productId: product._id,
+                name: item.name,
+                price: item.price,
+                quantity: item.quantity,
+                image: item.image
+            });
+
+            // ✅ Prepare stock decrement for BulkWrite
+            stockUpdates.push({
+                updateOne: {
+                    filter: { _id: product._id },
+                    update: { $inc: { stock: -item.quantity } }
+                }
             });
         }
 
-        const totalAmount = cart.reduce(
-            (sum, item) => sum + Number(item.price) * item.quantity,
-            0
-        );
+        if (validItems.length === 0) {
+            return res.json({ success: false, message: "No valid items to order" });
+        }
 
+        // ✅ CREATE ORDER
         const order = new Order({
             user: req.user._id,
-            items: cart,
+            items: validItems,
             totalAmount,
             status: "Pending"
         });
 
         await order.save();
 
-        // clear cart
-        req.session.cart = [];
+        // ✅ EXECUTE STOCK UPDATES IN DATABASE
+        if (stockUpdates.length > 0) {
+            await Product.bulkWrite(stockUpdates);
+        }
 
-        req.session.save(() => {
-            res.json({ success: true });
-        });
+        // ✅ CLEAR DB CART
+        await Cart.findOneAndDelete({ user: req.user._id });
+
+        res.json({ success: true, message: "Order placed successfully!" });
 
     } catch (err) {
         console.error("Checkout Error:", err);
-        res.status(500).json({ success: false });
+        res.status(500).json({ success: false, message: "Checkout failed" });
     }
 };
 
-
-/* =====================================================
-   2. MY ORDERS PAGE
-===================================================== */
-exports.getMyOrders = async (req, res) => {
+/* ================= MY ORDERS ================= */
+const getMyOrders = async (req, res) => {
     try {
+        if (!req.user) return res.redirect("/login");
 
-        const orders = await Order.find({
-            user: req.user._id
-        }).sort({ createdAt: -1 });
+        const orders = await Order.find({ user: req.user._id })
+            .sort({ createdAt: -1 });
 
-        res.render("myorders", {
-            orders,
+        res.render("orders/my-orders", {
+            orders: orders || [],
             user: req.user
         });
 
@@ -72,83 +99,61 @@ exports.getMyOrders = async (req, res) => {
     }
 };
 
-
-/* =====================================================
-   3. ⭐ LIVE DATA API (VERY IMPORTANT)
-   Used for auto-refresh status updates
-===================================================== */
-exports.getMyOrdersData = async (req, res) => {
+/* ================= MY ORDERS API ================= */
+const getMyOrdersData = async (req, res) => {
     try {
+        if (!req.user) {
+            return res.json({ success: false, message: "Not logged in" });
+        }
 
-        const orders = await Order.find({
-            user: req.user._id
-        }).sort({ createdAt: -1 });
+        const orders = await Order.find({ user: req.user._id })
+            .sort({ createdAt: -1 });
 
-        res.json({
-            success: true,
-            orders
-        });
+        res.json({ success: true, orders });
 
     } catch (err) {
-        console.error("Orders Data Error:", err);
+        console.error("Orders API Error:", err);
         res.status(500).json({ success: false });
     }
 };
 
-
-/* =====================================================
-   4. ADMIN UPDATE ORDER STATUS
-===================================================== */
-exports.updateOrderStatus = async (req, res) => {
+/* ================= REORDER ================= */
+const reorder = async (req, res) => {
     try {
-
-        const { status } = req.body;
-
-        await Order.findByIdAndUpdate(
-            req.params.id,
-            { status },
-            { new: true }
-        );
-
-        res.json({
-            success: true,
-            message: "Order status updated"
-        });
-
-    } catch (err) {
-        console.error("Update Status Error:", err);
-
-        res.status(500).json({
-            success: false
-        });
-    }
-};
-
-
-/* =====================================================
-   5. REORDER
-===================================================== */
-exports.reorder = async (req, res) => {
-    try {
-
-        const oldOrder = await Order.findById(req.params.orderId);
-
-        if (!oldOrder) {
-            return res.status(404).send("Order not found");
+        if (!req.user) {
+            return res.status(401).json({ success: false, message: "Login required" });
         }
 
-        if (!req.session.cart) req.session.cart = [];
+        const oldOrder = await Order.findOne({
+            _id: req.params.orderId,
+            user: req.user._id
+        });
+
+        if (!oldOrder) {
+            return res.status(404).json({ success: false, message: "Order not found" });
+        }
+
+        let cart = await Cart.findOne({ user: req.user._id });
+
+        if (!cart) {
+            cart = new Cart({
+                user: req.user._id,
+                items: []
+            });
+        }
 
         oldOrder.items.forEach(item => {
+            if (!item.productId) return;
 
-            const exist = req.session.cart.find(
-                i => i.name === item.name
+            const exist = cart.items.find(i =>
+                i.productId && i.productId.toString() === item.productId.toString()
             );
 
             if (exist) {
                 exist.quantity += item.quantity;
             } else {
-                req.session.cart.push({
+                cart.items.push({
+                    productId: item.productId,
                     name: item.name,
                     price: item.price,
                     image: item.image,
@@ -157,12 +162,17 @@ exports.reorder = async (req, res) => {
             }
         });
 
-        req.session.save(() =>
-            res.redirect("/products/cart")
-        );
+        await cart.save();
+
+        res.json({
+            success: true,
+            items: cart.items
+        });
 
     } catch (err) {
-        console.error("Reorder Error:", err);
-        res.status(500).send("Reorder failed");
+        console.error("REORDER ERROR:", err);
+        res.status(500).json({ success: false });
     }
 };
+
+module.exports = { checkout, getMyOrders, getMyOrdersData, reorder };

@@ -1,42 +1,38 @@
 const express = require("express");
 const router = express.Router();
 
+/* ================= CONTROLLERS ================= */
 const productController = require("../controllers/productController");
 const orderController = require("../controllers/ordercontroller");
-const { checkAuth } = require("../controllers/authcontroller");
 
+/* ================= AUTH MIDDLEWARE ================= */
+const { requireAuth } = require("../middleware/authMiddleware");
 
 /* =====================================================
-   PRODUCTS
+   PRODUCTS & MENU
 ===================================================== */
-router.get("/", checkAuth, productController.getAllProducts);
-
+router.get("/", productController.getAllProducts);
 
 /* =====================================================
    CART
 ===================================================== */
-router.get("/cart", checkAuth, productController.getCart);
-
+router.get("/cart", productController.getCart);
 router.post("/add-to-cart", productController.addToCart);
-router.post("/remove-item", productController.removeItem);
-router.post("/update-quantity", productController.updateQuantity);
-
 
 /* =====================================================
-   ORDERS (Moved to orderController)
+   ORDERS (PROTECTED)
 ===================================================== */
 
-// ✅ place order
-router.post("/checkout", checkAuth, orderController.checkout);
+// ✅ Checkout (only logged-in users)
+router.post("/checkout", requireAuth, orderController.checkout);
 
-// ✅ customer orders page
-router.get("/my-orders", checkAuth, orderController.getMyOrders);
+// ✅ My Orders page
+router.get("/my-orders", requireAuth, orderController.getMyOrders);
 
-// ⭐ NEW — LIVE STATUS UPDATE API (IMPORTANT)
-router.get("/my-orders-data", checkAuth, orderController.getMyOrdersData);
+// ✅ Live orders API
+router.get("/my-orders-data", requireAuth, orderController.getMyOrdersData);
 
-// ✅ reorder
-router.post("/reorder/:orderId", checkAuth, orderController.reorder);
-
+// ✅ Reorder
+router.post("/reorder/:orderId", requireAuth, orderController.reorder);
 
 module.exports = router;

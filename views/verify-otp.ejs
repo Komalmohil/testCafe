@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - FullStack Cafe</title>
+    <title>Verify OTP - FullStack Cafe</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
         /* ================= RESET & BASE ================= */
@@ -16,14 +16,14 @@
 
         body {
             min-height: 100vh;
-            /* Light, warm café-inspired background */
             background: #fdfcfb; 
             background-image: linear-gradient(120deg, #fdfbfb 0%, #ebedee 100%);
             display: flex;
             flex-direction: column;
             color: #333;
         }
-/* ================= FORCE HEADER VISIBILITY ================= */
+
+      /* ================= FORCE HEADER VISIBILITY ================= */
 header {
     width: 100%;
     background: #ffffff !important; /* Force solid white */
@@ -70,8 +70,9 @@ header .user-name {
     color: #4a3728 !important;
     font-weight: 600 !important;
 }
+
         /* ================= CENTER CONTAINER ================= */
-        .login-wrapper {
+        .verify-wrapper {
             flex: 1;
             display: flex;
             justify-content: center;
@@ -79,7 +80,7 @@ header .user-name {
             padding: 40px 20px;
         }
 
-        /* ================= LOGIN CARD (LIGHT) ================= */
+        /* ================= VERIFY CARD ================= */
         .form-box {
             width: 100%;
             max-width: 420px;
@@ -93,16 +94,23 @@ header .user-name {
         }
 
         .form-box h2 {
-            color: #4a3728; /* Coffee Brown */
+            color: #4a3728; 
             margin-bottom: 8px;
-            font-size: 30px;
+            font-size: 28px;
             font-weight: 700;
         }
 
         .form-box p.subtitle {
             color: #8c7e74;
-            margin-bottom: 30px;
+            margin-bottom: 25px;
             font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .email-display {
+            color: #4a3728;
+            font-weight: 600;
+            display: block;
         }
 
         /* ================= NOTIFICATION BOX ================= */
@@ -123,25 +131,27 @@ header .user-name {
             animation: shake 0.5s ease;
         }
 
-        /* ================= FORM ELEMENTS ================= */
+        /* ================= INPUTS ================= */
         .form-group {
-            margin-bottom: 18px;
+            margin-bottom: 20px;
         }
 
-        .form-box input {
+        .otp-input {
             width: 100%;
-            padding: 14px 18px;
+            padding: 15px;
+            font-size: 24px;
+            letter-spacing: 8px;
+            text-align: center;
             border: 2px solid #edf2f7;
             border-radius: 12px;
             outline: none;
-            font-size: 15px;
             background: #f8fafc;
             color: #2d3748;
             transition: all 0.3s ease;
         }
 
-        .form-box input:focus {
-            border-color: #d4a373; /* Warm Latte Accent */
+        .otp-input:focus {
+            border-color: #d4a373;
             background: #fff;
             box-shadow: 0 0 0 4px rgba(212, 163, 115, 0.1);
         }
@@ -150,10 +160,9 @@ header .user-name {
         .form-box button {
             width: 100%;
             padding: 14px;
-            margin-top: 10px;
             border: none;
             border-radius: 12px;
-            background: #4a3728; /* Solid Coffee Brown */
+            background: #4a3728; 
             color: #ffffff;
             font-size: 16px;
             font-weight: 600;
@@ -208,53 +217,61 @@ header .user-name {
         <%- include('partials/header') %>
     </header>
 
-    <div class="login-wrapper">
+    <div class="verify-wrapper">
         <div class="form-box">
-            <h2>Welcome Back</h2>
-            <p class="subtitle">Log in to your FullStack Cafe account</p>
+            <h2>Verify Email</h2>
+            <p class="subtitle">
+                Enter the 6-digit code sent to <br> 
+                <span class="email-display"><%= email %></span>
+            </p>
             
             <div id="message-container" class="msg"></div>
 
-            <form id="loginForm">
-                <div class="form-group">
-                    <input type="email" name="email" placeholder="Email Address" required>
-                </div>
+            <form id="verifyForm">
+                <input type="hidden" name="email" value="<%= email %>">
                 
                 <div class="form-group">
-                    <input type="password" name="password" placeholder="Password" required>
+                    <input 
+                        type="text" 
+                        name="otp" 
+                        class="otp-input" 
+                        placeholder="000000" 
+                        required 
+                        maxlength="6" 
+                        pattern="\d{6}" 
+                        autocomplete="one-time-code"
+                    >
                 </div>
                 
-                <button type="submit" id="submitBtn">Login to Account</button>
+                <button type="submit" id="submitBtn">Verify Account</button>
             </form>
 
             <div class="footer-links">
-                Don't have an account? <a href="/signup">Sign Up</a>
+                Wrong email address? <a href="/signup">Go Back</a>
             </div>
         </div>
     </div>
 
     <script>
-        const loginForm = document.getElementById('loginForm');
+        const verifyForm = document.getElementById('verifyForm');
         const msgDiv = document.getElementById('message-container');
         const submitBtn = document.getElementById('submitBtn');
 
-        loginForm.addEventListener('submit', async (e) => {
+        verifyForm.addEventListener('submit', async (e) => {
             e.preventDefault(); 
 
-            // Disable button during request
-            submitBtn.innerText = "Checking...";
+            submitBtn.innerText = "Verifying...";
             submitBtn.disabled = true;
 
-            // Reset error messages
             msgDiv.style.display = 'none';
             msgDiv.innerText = '';
             msgDiv.classList.remove('error');
 
-            const formData = new FormData(loginForm);
+            const formData = new FormData(verifyForm);
             const data = Object.fromEntries(formData.entries());
 
             try {
-                const response = await fetch('/login', {
+                const response = await fetch('/verify-otp', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
@@ -263,37 +280,24 @@ header .user-name {
                 const result = await response.json();
 
                 if (result.success) {
-                    window.location.href = result.redirectUrl || '/products';
+                    // Success! Redirect to login with a success message
+                    window.location.href = "/login?message=Email verified successfully! Please log in.";
                 } else {
-                    // Stay on page and show notification
-                    msgDiv.innerText = result.message || "Invalid credentials";
+                    // Show error notification on same page
+                    msgDiv.innerText = result.message || "Invalid or expired OTP.";
                     msgDiv.style.display = 'block';
                     msgDiv.classList.add('error');
-                    
-                    // Re-enable button
-                    submitBtn.innerText = "Login to Account";
+                    submitBtn.innerText = "Verify Account";
                     submitBtn.disabled = false;
                 }
             } catch (err) {
                 msgDiv.innerText = "Something went wrong. Please try again.";
                 msgDiv.style.display = 'block';
                 msgDiv.classList.add('error');
-                submitBtn.innerText = "Login to Account";
+                submitBtn.innerText = "Verify Account";
                 submitBtn.disabled = false;
             }
         });
-
-        // Check for success messages in URL (e.g., from verify-otp)
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.has('message')) {
-            msgDiv.innerText = urlParams.get('message');
-            msgDiv.style.display = 'block';
-            msgDiv.style.background = "#f0fff4";
-            msgDiv.style.color = "#2f855a";
-            msgDiv.style.border = "1px solid #c6f6d5";
-            window.history.replaceState({}, document.title, window.location.pathname);
-        }
     </script>
-
 </body>
 </html>

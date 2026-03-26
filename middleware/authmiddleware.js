@@ -1,88 +1,59 @@
 const User = require("../models/user");
-const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const SECRET_KEY = process.env.SECRET_KEY || "supersecretkey";
-const { requireAuth } = require("../controllers/authcontroller");
 
-// ================= 2. REQUIRE AUTH (Protection Middleware) =================
+const SECRET_KEY = process.env.SECRET_KEY || "supersecretkey";
+
+/* ================= 1. CHECK AUTH ================= */
+exports.checkAuth = async (req, res, next) => {
+    try {
+        const token = req.cookies?.token;
+
+        if (!token) {
+            req.user = null;
+            res.locals.user = null;
+            return next();
+        }
+
+        // ✅ Verify token
+        const decoded = jwt.verify(token, SECRET_KEY);
+
+        // ✅ Fetch user from DB
+        const user = await User.findById(decoded.id).select("-password");
+
+        if (!user) {
+            req.user = null;
+            res.locals.user = null;
+            res.clearCookie("token");
+            return next();
+        }
+
+        // ✅ SET USER PROPERLY
+        req.user = user;
+        res.locals.user = user;
+
+        next();
+
+    } catch (err) {
+        console.error("Auth Error:", err.message);
+
+        req.user = null;
+        res.locals.user = null;
+        res.clearCookie("token");
+
+        next();
+    }
+};
+
+/* ================= 2. REQUIRE AUTH ================= */
 exports.requireAuth = (req, res, next) => {
     if (!req.user) {
+        if (req.headers.accept && req.headers.accept.includes("application/json")) {
+            return res.status(401).json({
+                success: false,
+                message: "Please login first"
+            });
+        }
         return res.redirect("/login");
     }
     next();
-};
-
-// ================= 3. SIGNUP (Your Existing Code) =================
-exports.signup = async (req, res) => {
-    try {
-        const { name, email, password } = req.body;
-
-        const existingUser = await User.findOne({ email });
-        if (existingUser) {
-            return res.status(400).send("User already exists with this email.");
-        }
-
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
-
-        const newUser = new User({
-            name,
-            email,
-            password: hashedPassword,
-            role: "user"
-        });
-
-        await newUser.save();
-
-        const token = jwt.sign({ id: newUser._id, role: newUser.role }, SECRET_KEY, {
-            expiresIn: "1d",
-        });
-
-        res.cookie("token", token, {
-            httpOnly: true,
-            maxAge: 24 * 60 * 60 * 1000,
-        });
-
-        res.redirect("/");
-
-    } catch (err) {
-        console.error(err);
-        res.status(500).send("Error creating account.");
-    }
-};
-
-// ================= 4. LOGIN =================
-exports.login = async (req, res) => {
-    try {
-        const { email, password } = req.body;
-
-        const user = await User.findOne({ email });
-        if (!user) return res.status(401).send("Invalid email or password");
-
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) return res.status(401).send("Invalid email or password");
-
-        const token = jwt.sign({ id: user._id, role: user.role }, SECRET_KEY, {
-            expiresIn: "1d",
-        });
-
-        res.cookie("token", token, {
-            httpOnly: true,
-            maxAge: 24 * 60 * 60 * 1000,
-        });
-
-        // Redirect Admin to Dashboard, others to Products/Home
-        if (user.role === "admin") return res.redirect("/admin");
-        res.redirect("/products");
-
-    } catch (err) {
-        console.error(err);
-        res.status(500).send("Login error");
-    }
-};
-
-// ================= 5. LOGOUT =================
-exports.logout = (req, res) => {
-    res.clearCookie("token");
-    res.redirect("/login");
 };

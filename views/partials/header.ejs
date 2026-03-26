@@ -1,64 +1,203 @@
 <header class="main-header">
     <nav class="navbar">
-
-        <!-- LOGO -->
         <div class="logo">
             <a href="/">☕ FullStack Cafe</a>
         </div>
 
-        <!-- NAV LINKS -->
         <ul class="nav-links">
-
             <li><a href="/products">Menu</a></li>
 
             <% if (typeof user !== 'undefined' && user) { %>
-
-                <!-- MY ORDERS -->
                 <li>
-                    <a href="/products/my-orders" class="orders-link">
-                        📜 My Orders
-                    </a>
+                    <a href="/products/my-orders" class="orders-link">📜 My Orders</a>
                 </li>
 
-                <!-- USER PROFILE (NO DROPDOWN) -->
-                <li class="user-info">
-
-                    <!-- Avatar (First Letter Auto) -->
-                    <div class="avatar">
+                <li class="user-info" style="display: flex; align-items: center; gap: 8px;">
+                    <div class="avatar" style="width: 30px; height: 30px; background: #d4a373; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">
                         <%= user.name ? user.name.charAt(0).toUpperCase() : 'U' %>
                     </div>
-
-                    <!-- Username -->
-                    <span class="username">
+                    <span class="username" style="color: #4a3728; font-weight: 600;">
                         <%= user.name || 'User' %>
                     </span>
-
                 </li>
 
-                <!-- LOGOUT -->
                 <li>
                     <a href="/logout" class="auth-btn">Logout</a>
                 </li>
-
             <% } else { %>
-
                 <li><a href="/login">Login</a></li>
                 <li><a href="/signup" class="auth-btn">Sign Up</a></li>
-
             <% } %>
 
-            <!-- CART -->
             <li>
                 <a href="/products/cart" class="cart-icon">
                     🛒 Cart
-                    <span class="badge" id="cart-count">
-                        <%= (typeof session !== 'undefined' && session.cart)
-                            ? session.cart.reduce((total, item) => total + item.quantity, 0)
-                            : 0 %>
-                    </span>
+                    <span class="badge" id="cart-count">0</span>
                 </a>
             </li>
-
         </ul>
     </nav>
 </header>
+
+<link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+<script src="/socket.io/socket.io.js"></script>
+
+<style>
+    .main-header {
+        background: #ffffff;
+        box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+        padding: 12px 0;
+        position: sticky;
+        top: 0;
+        width: 100%;
+        z-index: 1000;
+        border-bottom: 1px solid #eee;
+    }
+    .navbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 20px;
+    }
+    .logo a {
+        text-decoration: none;
+        color: #4a3728;
+        font-weight: 700;
+        font-size: 22px;
+    }
+    .nav-links {
+        display: flex;
+        list-style: none;
+        align-items: center;
+        gap: 25px;
+        margin: 0;
+    }
+    .nav-links li a {
+        text-decoration: none;
+        color: #555;
+        font-weight: 500;
+        transition: color 0.3s;
+        font-size: 15px;
+    }
+    .nav-links li a:hover {
+        color: #d4a373;
+    }
+    .auth-btn {
+        background: #4a3728;
+        color: white !important;
+        padding: 8px 18px;
+        border-radius: 8px;
+        transition: transform 0.2s !important;
+    }
+    .auth-btn:hover {
+        transform: translateY(-2px);
+        background: #5d4636;
+    }
+    .badge {
+        background: #ff4757;
+        color: white;
+        border-radius: 50%;
+        padding: 2px 7px;
+        font-size: 11px;
+        vertical-align: top;
+        margin-left: -5px;
+        font-weight: bold;
+        transition: transform 0.2s;
+        display: inline-block;
+    }
+</style>
+
+<script>
+(function() {
+    /* ================= CART LOGIC ================= */
+    window.updateCartBadge = () => {
+        const cartCountElement = document.getElementById("cart-count");
+        if (!cartCountElement) return;
+        const localCart = JSON.parse(localStorage.getItem('cafe_cart')) || [];
+        const totalItems = localCart.reduce((sum, item) => sum + (item.quantity || 1), 0);
+        cartCountElement.innerText = totalItems;
+        cartCountElement.style.transform = "scale(1.3)";
+        setTimeout(() => cartCountElement.style.transform = "scale(1)", 200);
+    };
+
+    /* ================= REAL-TIME NOTIFICATIONS ================= */
+    const socket = io();
+    const userId = "<%= (typeof user !== 'undefined' && user) ? user._id : '' %>";
+
+    if (userId) {
+        // Join the private room for this user
+        socket.emit('join', userId);
+
+        // Listen for Order Updates from Admin
+        socket.on('orderUpdate', (data) => {
+            Toastify({
+                text: data.message,
+                duration: 6000,
+                close: true,
+                gravity: "top", 
+                position: "right", 
+                stopOnFocus: true, 
+                style: {
+                    background: data.status === "Delivered" ? "#28a745" : "#4a3728",
+                    borderRadius: "12px",
+                    fontWeight: "600",
+                    boxShadow: "0 10px 20px rgba(0,0,0,0.1)"
+                },
+                onClick: function(){
+                    window.location.href = "/products/my-orders";
+                } 
+            }).showToast();
+
+            // Play notification sound
+            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+            audio.play().catch(e => console.log("Audio play blocked by browser"));
+        });
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        window.updateCartBadge();
+
+        document.addEventListener("click", async (e) => {
+            const btn = e.target.closest(".add-to-cart-btn");
+            if (!btn) return;
+
+            const name = btn.getAttribute("data-name");
+            const price = btn.getAttribute("data-price");
+            const image = btn.getAttribute("data-image");
+            const id = btn.getAttribute("data-id");
+
+            try {
+                const res = await fetch("/products/add-to-cart", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ id, name, price, image })
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    let localCart = JSON.parse(localStorage.getItem('cafe_cart')) || [];
+                    const existingItem = localCart.find(item => item.id === id);
+
+                    if (existingItem) {
+                        existingItem.quantity += 1;
+                    } else {
+                        localCart.push({ id, name, price, image, quantity: 1 });
+                    }
+                    
+                    localStorage.setItem('cafe_cart', JSON.stringify(localCart));
+                    window.updateCartBadge();
+                }
+            } catch (err) {
+                console.error("Header Cart Sync Error:", err);
+            }
+        });
+
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'cafe_cart') window.updateCartBadge();
+        });
+    });
+})();
+</script>

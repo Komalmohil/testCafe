@@ -5,23 +5,42 @@ const orderSchema = new mongoose.Schema({
     user: { 
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'User',
-        required: true 
+        required: true,
+        index: true
     },
 
     items: [{
+        // ❌ REMOVE required: true
         productId: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "Product"
+            ref: "Product",
+            default: null // ✅ allow null (VERY IMPORTANT)
         },
-        name: String,
-        price: Number,
-        quantity: Number,
-        image: String
+        name: {
+            type: String,
+            required: true,
+            trim: true
+        },
+        price: {
+            type: Number,
+            required: true,
+            min: 0
+        },
+        quantity: {
+            type: Number,
+            required: true,
+            min: 1
+        },
+        image: {
+            type: String,
+            default: "/images/default-food.png"
+        }
     }],
 
     totalAmount: { 
         type: Number, 
-        required: true 
+        required: true,
+        min: 0
     },
 
     status: {
@@ -37,10 +56,12 @@ const orderSchema = new mongoose.Schema({
     },
 
     deliveredAt: {
-        type: Date
+        type: Date,
+        default: null
     }
 
-}, { timestamps: true });
+}, { 
+    timestamps: true 
+});
 
-module.exports =
-  mongoose.models.Order || mongoose.model("Order", orderSchema);
+module.exports = mongoose.models.Order || mongoose.model("Order", orderSchema);

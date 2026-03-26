@@ -18,13 +18,24 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: [true, "Please provide a password"],
         minlength: [6, "Password must be at least 6 characters"],
-       
     },
     role: {
         type: String,
         enum: ["user", "admin"], 
         default: "user"
     },
+    // --- NEW FIELDS FOR OTP VERIFICATION ---
+    isVerified: {
+        type: Boolean,
+        default: false
+    },
+    otp: {
+        type: String
+    },
+    otpExpires: {
+        type: Date
+    },
+    // ---------------------------------------
     createdAt: {
         type: Date,
         default: Date.now
