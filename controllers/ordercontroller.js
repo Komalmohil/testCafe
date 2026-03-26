@@ -1,6 +1,6 @@
-const Order = require("../models/Order");
+const Order = require("../models/order");
 const Cart = require("../models/Cart");
-const Product = require("../models/Product");
+const Product = require("../models/product");
 
 /* ================= CHECKOUT (STOCKS UPDATED) ================= */
 const checkout = async (req, res) => {

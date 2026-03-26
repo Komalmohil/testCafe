@@ -1,5 +1,5 @@
 const Cart = require("../models/Cart");
-const Product = require("../models/Product");
+const Product = require("../models/product");
 
 /* ================= CART PAGE ================= */
 exports.getCartPage = async (req, res) => {
