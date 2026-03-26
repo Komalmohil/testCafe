@@ -1,4 +1,4 @@
-const User = require("../models/user"); // Ensure correct casing for User model
+const User = require('../models/User');
 const Cart = require("../models/Cart");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
