@@ -6,24 +6,19 @@ const nodemailer = require("nodemailer");
 
 const SECRET_KEY = process.env.SECRET_KEY || "supersecretkey";
 
-// --- BULLETPROOF Nodemailer Configuration for Render ---
+// --- FINAL OPTIMIZED Nodemailer Configuration for Render ---
 const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true, // Use SSL
+    service: 'gmail', // Let Nodemailer handle the host/port/SSL logic
     auth: {
         user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
+        pass: process.env.EMAIL_PASS // Ensure this is a 16-digit App Password
     },
-    // This forces Node.js to use IPv4 instead of IPv6
-    family: 4, 
-    connectionTimeout: 20000,
-    greetingTimeout: 20000,
-    socketTimeout: 20000,
+    // Adding a very generous timeout for slow cloud networks
+    connectionTimeout: 60000, 
+    greetingTimeout: 60000,
+    socketTimeout: 60000,
     tls: {
-        // Essential for cloud hosting providers
-        rejectUnauthorized: false,
-        servername: 'smtp.gmail.com'
+        rejectUnauthorized: false // Helps bypass security handshakes on shared servers
     }
 });
 
@@ -159,19 +154,17 @@ const signup = async (req, res) => {
             await newUser.save();
         }
 
-        // Send Email in the background
+        // Send Email in the background - This prevents the UI from waiting
         transporter.sendMail({
             from: `"FullStack Cafe" <${process.env.EMAIL_USER}>`,
             to: email,
             subject: "Verify your FullStack Cafe Account",
             html: `
-                <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-                    <h2 style="color: #4a3728;">Welcome to FullStack Cafe!</h2>
-                    <p>Use the code below to verify your account:</p>
-                    <div style="background: #f7f7f7; padding: 15px; font-size: 24px; font-weight: bold; text-align: center; color: #d4a373; letter-spacing: 5px;">
-                        ${otp}
-                    </div>
-                    <p style="font-size: 12px; color: #888; margin-top: 15px;">Valid for 10 minutes only.</p>
+                <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+                    <h2 style="color: #4a3728;">FullStack Cafe</h2>
+                    <p>Thank you for signing up! Use the code below to verify your account:</p>
+                    <h1 style="background: #f4f4f4; padding: 10px; text-align: center; color: #d4a373;">${otp}</h1>
+                    <p style="color: #666;">This code expires in 10 minutes.</p>
                 </div>
             `
         }).then(() => {
