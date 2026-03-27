@@ -6,21 +6,22 @@ const nodemailer = require("nodemailer");
 
 const SECRET_KEY = process.env.SECRET_KEY || "supersecretkey";
 
-// --- FIXED Nodemailer Transporter Configuration ---
+// --- ULTIMATE Nodemailer Transporter Configuration ---
+// Designed to fix ENETUNREACH and ETIMEDOUT errors on Render
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
     host: 'smtp.gmail.com',
     port: 587,
-    secure: false, // true for 465, false for other ports
+    secure: false, 
     auth: {
         user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
+        pass: process.env.EMAIL_PASS // Use the 16-digit App Password
     },
-    // Fix for Render's IPv6 connectivity issues (ENETUNREACH)
-    family: 4, 
+    family: 4, // CRITICAL: Forces IPv4 to bypass Render's network routing issues
+    connectionTimeout: 10000, 
+    greetingTimeout: 10000,
     tls: {
-        // Helps avoid handshake issues on some cloud servers
-        rejectUnauthorized: false 
+        rejectUnauthorized: false, 
+        minVersion: 'TLSv1.2'
     }
 });
 
@@ -120,7 +121,7 @@ const requireAdmin = (req, res, next) => {
     next();
 };
 
-/* ================= 4. SIGNUP (FIXED EMAIL ERROR HANDLING) ================= */
+/* ================= 4. SIGNUP (FIXED & RESILIENT) ================= */
 const signup = async (req, res) => {
     try {
         let { name, email, password } = req.body;
@@ -158,25 +159,26 @@ const signup = async (req, res) => {
             await newUser.save();
         }
 
-        // --- FIXED: Send email inside nested try/catch ---
-        // This ensures that even if the email service fails, the page doesn't hang forever
-        try {
-            await transporter.sendMail({
-                from: `"FullStack Cafe" <${process.env.EMAIL_USER}>`,
-                to: email,
-                subject: "Verify your FullStack Cafe Account",
-                html: `<h3>Your OTP is: ${otp}</h3>`
-            });
-            res.json({ success: true, message: "OTP sent!", email });
-        } catch (emailErr) {
-            console.error("Nodemailer Error:", emailErr);
-            // Even if email fails, we tell the user to try checking their mail 
-            // or provide a specific error so they know it's a mail issue.
-            res.status(500).json({ 
-                success: false, 
-                message: "User saved, but failed to send OTP email. Please check your email settings." 
-            });
-        }
+        // --- NON-BLOCKING BACKGROUND EMAIL ---
+        // We do not 'await' this. This ensures the user gets a response 
+        // immediately even if Gmail is slow to respond.
+        transporter.sendMail({
+            from: `"FullStack Cafe" <${process.env.EMAIL_USER}>`,
+            to: email,
+            subject: "Verify your FullStack Cafe Account",
+            html: `<h3>Your OTP is: ${otp}</h3>`
+        }).then(() => {
+            console.log("OTP Email sent successfully to:", email);
+        }).catch(e => {
+            console.error("Nodemailer Background Error:", e.message);
+        });
+
+        // Always return success if the database save was successful
+        return res.json({ 
+            success: true, 
+            message: "Registration successful! Please check your email for the OTP.", 
+            email 
+        });
 
     } catch (err) {
         console.error("Signup DB Error:", err);
