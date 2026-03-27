@@ -51,10 +51,8 @@ temp/
 coverage/
 
 # ==============================
-# Uploads (if storing user files)
+# Uploads (FIXED: Removed ignores so images can upload)
 # ==============================
-uploads/
-public/uploads/
 
 # ==============================
 # Cache

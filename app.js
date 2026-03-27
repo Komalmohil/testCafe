@@ -11,6 +11,7 @@ const cookieParser = require("cookie-parser");
 const session = require("express-session");
 
 let MongoStore = require("connect-mongo");
+// Handle different versions of connect-mongo
 if (typeof MongoStore !== 'function' && MongoStore.default) {
     MongoStore = MongoStore.default;
 }
@@ -38,15 +39,15 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 /* ================= STATIC FILES ================= */
-// 1. Serve everything in public (css, js, etc.)
+// 1. Serve main public assets (CSS, JS)
 app.use(express.static(path.join(__dirname, "public")));
 
-// 2. Explicitly serve the uploads folder so /uploads/image.jpg works
+// 2. FIXED: Serve the uploads folder specifically. 
+// This makes http://localhost:3000/uploads/burger.jpeg work.
 app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
 
-// 3. Fallback: If your DB stores JUST the filename (burger.jpeg), 
-// this allows the browser to find it even if the 'uploads' prefix is missing.
-app.use(express.static(path.join(__dirname, "public/uploads")));
+// 3. SAFETY FALLBACK: If your DB stores "uploads/burger.jpeg" instead of just "burger.jpeg"
+app.use("/public", express.static(path.join(__dirname, "public")));
 
 /* ================= SESSION ================= */
 app.use(session({
@@ -60,7 +61,7 @@ app.use(session({
     cookie: {
         maxAge: 1000 * 60 * 60 * 24,
         httpOnly: true,
-        secure: false // Set to true if using HTTPS on Render
+        secure: process.env.NODE_ENV === "production" // Set to true if using HTTPS on Render
     }
 }));
 
@@ -80,6 +81,7 @@ io.on("connection", (socket) => {
     });
 });
 
+// Middleware to check authentication on every request
 app.use(checkAuth);
 
 /* ================= GLOBAL EJS VARIABLES ================= */

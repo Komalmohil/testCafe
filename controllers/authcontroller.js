@@ -32,7 +32,6 @@ const proceedToLogin = async (user, req, res) => {
         req.session.cart = [];
     }
 
-    /* ===== TOKEN ===== */
     const token = jwt.sign(
         { id: user._id, role: user.role },
         SECRET_KEY,
@@ -112,7 +111,7 @@ const requireAdmin = (req, res, next) => {
     next();
 };
 
-/* ================= 4. SIGNUP (With OTP) ================= */
+/* ================= 4. SIGNUP (FIXED EMAIL LOGIC) ================= */
 const signup = async (req, res) => {
     try {
         let { name, email, password } = req.body;
@@ -121,8 +120,11 @@ const signup = async (req, res) => {
         }
 
         email = email.trim().toLowerCase();
+        
+        // CHECK: Does the user exist and is already verified?
         const existingUser = await User.findOne({ email });
-        if (existingUser) {
+        
+        if (existingUser && existingUser.isVerified) {
             return res.status(400).json({ success: false, message: "Email already registered." });
         }
 
@@ -130,17 +132,26 @@ const signup = async (req, res) => {
         const otpExpires = Date.now() + 10 * 60 * 1000;
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const newUser = new User({
-            name: name.trim(),
-            email,
-            password: hashedPassword,
-            role: "user",
-            otp,
-            otpExpires,
-            isVerified: false
-        });
-
-        await newUser.save();
+        if (existingUser && !existingUser.isVerified) {
+            // FIX: If unverified user exists, update their data and send new OTP
+            existingUser.name = name.trim();
+            existingUser.password = hashedPassword;
+            existingUser.otp = otp;
+            existingUser.otpExpires = otpExpires;
+            await existingUser.save();
+        } else {
+            // New user entirely
+            const newUser = new User({
+                name: name.trim(),
+                email,
+                password: hashedPassword,
+                role: "user",
+                otp,
+                otpExpires,
+                isVerified: false
+            });
+            await newUser.save();
+        }
 
         await transporter.sendMail({
             from: `"FullStack Cafe" <${process.env.EMAIL_USER}>`,
@@ -152,6 +163,7 @@ const signup = async (req, res) => {
         res.json({ success: true, message: "OTP sent!", email });
 
     } catch (err) {
+        console.error("Signup Error:", err);
         res.status(500).json({ success: false, message: "Error creating account." });
     }
 };
@@ -179,7 +191,7 @@ const verifyOTP = async (req, res) => {
     }
 };
 
-/* ================= 6. LOGIN (JSON RESPONSE FIXED) ================= */
+/* ================= 6. LOGIN ================= */
 const login = async (req, res) => {
     try {
         let { email, password } = req.body;
@@ -194,11 +206,7 @@ const login = async (req, res) => {
             return res.status(401).json({ success: false, message: "Invalid email or password." });
         }
 
-        if (user.role === "admin") {
-            return await proceedToLogin(user, req, res);
-        }
-
-        if (!user.isVerified) {
+        if (!user.isVerified && user.role !== "admin") {
             return res.status(403).json({ 
                 success: false, 
                 message: "Please verify your email before logging in.",
@@ -206,7 +214,6 @@ const login = async (req, res) => {
             });
         }
 
-        // --- REGULAR VERIFIED USER LOGIN ---
         return await proceedToLogin(user, req, res);
 
     } catch (err) {

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>Food Menu - FullStack Cafe</title>
     <link rel="stylesheet" href="/css/style.css">
     <style>
@@ -112,7 +113,7 @@
         }
         .modal-confirm-btn:disabled { background: #ccc; cursor: not-allowed; }
 
-        .food-img { cursor: pointer; transition: 0.3s; }
+        .food-img { cursor: pointer; transition: 0.3s; width: 100%; height: 180px; object-fit: cover; border-radius: 10px; }
         .food-img:hover { opacity: 0.8; }
 
         #modal-description {
@@ -122,7 +123,6 @@
             line-height: 1.4;
         }
 
-        /* --- Stock Badge --- */
         .stock-label {
             font-size: 0.8rem;
             font-weight: bold;
@@ -130,7 +130,6 @@
             display: block;
         }
 
-        /* --- Pagination Styling --- */
         .pagination-container {
             display: flex;
             justify-content: center;
@@ -197,7 +196,7 @@
 
 <div class="container" id="food-items-grid"></div>
 
-<div class="pagination-container" id="pagination-controls">
+<div class="pagination-container" id="pagination-controls" style="display: none;">
     <button class="pag-btn" id="prev-page-btn" onclick="changePage(-1)">&lt;</button>
     <span id="page-info">1 / 1</span>
     <button class="pag-btn" id="next-page-btn" onclick="changePage(1)">&gt;</button>
@@ -206,7 +205,7 @@
 <div id="productModal" class="modal">
     <div class="modal-content">
         <span class="close-modal" onclick="closeModal()">&times;</span>
-        <img id="modal-img" src="" alt="" class="modal-img">
+        <img id="modal-img" src="" alt="" class="modal-img" onerror="this.src='https://via.placeholder.com/300?text=Image+Not+Found'">
         <h2 id="modal-title">Product Name</h2>
         <p id="modal-description"></p>
         <p id="modal-price" style="color: #e67e22; font-weight: bold; margin-bottom: 5px;"></p>
@@ -223,18 +222,31 @@
 
 <div id="toast-container"></div>
 
-
 <script>
-    // --- PAGINATION LOGIC ---
+    // Data passed from EJS
     const allItems = <%- JSON.stringify(foodItems || []) %>;
     const itemsPerPage = 8; 
     let currentPage = 1;
+    let currentProduct = null;
+    let currentQty = 1;
+    let maxStock = 0;
 
+    // Helper for image paths
+    function getCleanImagePath(img) {
+        if (!img) return 'https://via.placeholder.com/300?text=No+Image';
+        if (img.startsWith('http')) return img;
+        let path = img.includes('uploads/') ? img : `/uploads/${img}`;
+        if (!path.startsWith('/')) path = '/' + path;
+        return path.replace(/ /g, '%20');
+    }
+
+    // Main Render Function
     function renderPage() {
         const grid = document.getElementById('food-items-grid');
         const pageInfo = document.getElementById('page-info');
+        const pagination = document.getElementById('pagination-controls');
+        
         const totalPages = Math.ceil(allItems.length / itemsPerPage) || 1;
-
         if (currentPage > totalPages) currentPage = totalPages;
         if (currentPage < 1) currentPage = 1;
 
@@ -244,25 +256,29 @@
 
         document.getElementById('prev-page-btn').disabled = (currentPage === 1);
         document.getElementById('next-page-btn').disabled = (currentPage === totalPages || allItems.length === 0);
-
         pageInfo.innerText = `${currentPage} / ${totalPages}`;
 
         if (allItems.length === 0) {
             grid.innerHTML = `<div style="text-align:center; width:100%; padding:50px;"><h3>No items found.</h3></div>`;
-            document.getElementById('pagination-controls').style.display = 'none';
+            pagination.style.display = 'none';
             return;
         }
 
-        document.getElementById('pagination-controls').style.display = totalPages > 1 ? 'flex' : 'none';
+        pagination.style.display = totalPages > 1 ? 'flex' : 'none';
 
         grid.innerHTML = itemsToShow.map(food => {
             const isSoldOut = food.stock <= 0;
+            const imagePath = getCleanImagePath(food.image);
+            const sanitizedDesc = (food.description || "Delicious freshly prepared food.").replace(/`/g, "\\`").replace(/'/g, "\\'");
+            
             return `
                 <div class="card" style="opacity: ${isSoldOut ? '0.7' : '1'}">
-                    <img src="${food.image}" 
+                    <img src="${imagePath}" 
                          alt="${food.name}" 
                          class="food-img" 
-                         onclick="openProductModal('${food._id}', '${food.name}', '${food.price}', '${food.image}', \`${(food.description || 'Delicious freshly prepared food.').replace(/'/g, "\\'")}\`, ${food.stock})">
+                         loading="lazy"
+                         onerror="this.src='https://via.placeholder.com/300?text=Image+Not+Found'"
+                         onclick="openProductModal('${food._id}', '${food.name}', '${food.price}', '${imagePath}', \`${sanitizedDesc}\`, ${food.stock})">
                     
                     <h3>${food.name}</h3>
                     <span class="stock-label" style="color: ${isSoldOut ? '#ff4d4d' : '#2ecc71'}">
@@ -275,7 +291,7 @@
                             data-id="${food._id}"
                             data-name="${food.name}" 
                             data-price="${food.price}" 
-                            data-image="${food.image}"
+                            data-image="${imagePath}"
                             data-stock="${food.stock}"
                             ${isSoldOut ? 'disabled' : ''}>
                         ${isSoldOut ? 'Out of Stock' : 'Add To Cart 🛒'}
@@ -288,30 +304,11 @@
     function changePage(step) {
         currentPage += step;
         renderPage();
-        const menuHeader = document.querySelector('.top-controls');
-        if (menuHeader) menuHeader.scrollIntoView({ behavior: 'smooth' });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-   function handleAddToCart(btn) {
-    const productData = {
-        productId: btn.getAttribute('data-id'), 
-        name: btn.getAttribute('data-name'),
-        price: parseFloat(btn.getAttribute('data-price')),
-        image: btn.getAttribute('data-image'),
-        quantity: 1
-    };
-
-    addToCart(productData);
-}
-
-    renderPage();
-
-    // --- MODAL & CART LOGIC ---
-    let currentProduct = null;
-    let currentQty = 1;
-    let maxStock = 0;
-
-    function openProductModal(id, name, price, image, description, stock) {
+    // Modal Logic
+    window.openProductModal = function(id, name, price, image, description, stock) {
         currentProduct = { id, name, price: parseFloat(price), image };
         currentQty = 1;
         maxStock = parseInt(stock);
@@ -327,80 +324,69 @@
         const addBtn = document.getElementById('modal-add-btn');
 
         if (maxStock <= 0) {
-            statusEl.innerText = "❌ This item is currently sold out.";
+            statusEl.innerText = "❌ Sold Out";
             statusEl.style.color = "#ff4d4d";
             qtyControls.style.display = 'none';
             addBtn.disabled = true;
-            addBtn.innerText = "Sold Out";
         } else {
             statusEl.innerText = `🟢 In Stock`;
             statusEl.style.color = "#2ecc71";
             qtyControls.style.display = 'flex';
             addBtn.disabled = false;
-            addBtn.innerText = "Add to Cart 🛒";
         }
-
         document.getElementById('productModal').style.display = 'flex';
-    }
+    };
 
-    function closeModal() {
-        document.getElementById('productModal').style.display = 'none';
-    }
+    window.closeModal = () => document.getElementById('productModal').style.display = 'none';
 
-    function updateQty(change) {
+    window.updateQty = (change) => {
         const nextQty = currentQty + change;
         if (nextQty >= 1 && nextQty <= maxStock) {
             currentQty = nextQty;
             document.getElementById('modal-qty').innerText = currentQty;
-        } else if (nextQty > maxStock) {
-            // Keep the stock check for validation, but the user doesn't see the specific total stock on screen
-            showToast(`⚠️ Cannot add more of this item.`);
         }
-    }
+    };
 
-    window.onclick = function(event) {
-        const modal = document.getElementById('productModal');
-        if (event.target == modal) closeModal();
-    }
-
-    document.getElementById('modal-add-btn').addEventListener('click', function() {
-        if (currentProduct && maxStock > 0) {
-            addToCart({ ...currentProduct, quantity: currentQty });
-            closeModal();
-        }
-    });
+    // Cart Handlers
+    window.handleAddToCart = (btn) => {
+        const productData = {
+            productId: btn.getAttribute('data-id'), 
+            name: btn.getAttribute('data-name'),
+            price: parseFloat(btn.getAttribute('data-price')),
+            image: btn.getAttribute('data-image'),
+            quantity: 1
+        };
+        addToCart(productData);
+    };
 
     async function addToCart(productData) {
-    let localCart = JSON.parse(localStorage.getItem('cafe_cart')) || [];
+        let localCart = JSON.parse(localStorage.getItem('cafe_cart')) || [];
+        const existingItem = localCart.find(item => item.productId === productData.productId);
 
-    const existingItem = localCart.find(
-        item => item.productId === productData.productId 
-    );
+        if (existingItem) {
+            existingItem.quantity += productData.quantity;
+        } else {
+            localCart.push(productData);
+        }
 
-    if (existingItem) {
-        existingItem.quantity += productData.quantity;
-    } else {
-        localCart.push(productData);
+        localStorage.setItem('cafe_cart', JSON.stringify(localCart));
+        showToast(`✅ ${productData.name} added!`);
+
+        if (typeof window.updateCartBadge === 'function') {
+            window.updateCartBadge();
+        }
+
+        try {
+            // Background sync - No page reload allowed here
+            await fetch('/products/sync', { 
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cartItems: localCart })
+            });
+        } catch (err) {
+            console.error("Sync failed", err);
+        }
     }
-
-    localStorage.setItem('cafe_cart', JSON.stringify(localCart));
-
-    showToast(`✅ ${productData.name} added!`);
-
-    if (typeof window.updateCartBadge === 'function') {
-        window.updateCartBadge();
-    }
-
-    try {
-        await fetch('/cart/sync', {   
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ cartItems: localCart })
-        });
-    } catch (err) {
-        console.log("Sync failed (guest mode)");
-    }
-}
 
     function showToast(message) {
         const container = document.getElementById('toast-container');
@@ -408,8 +394,33 @@
         toast.className = 'toast';
         toast.innerHTML = `<span>${message}</span>`;
         container.appendChild(toast);
-        setTimeout(() => { toast.remove(); }, 3000);
+        setTimeout(() => toast.remove(), 3000);
     }
+
+    // Modal Add Button Listener
+    document.getElementById('modal-add-btn').addEventListener('click', () => {
+        if (currentProduct && maxStock > 0) {
+            addToCart({ 
+                productId: currentProduct.id, 
+                name: currentProduct.name, 
+                price: currentProduct.price, 
+                image: currentProduct.image, 
+                quantity: currentQty 
+            });
+            closeModal();
+        }
+    });
+
+    // Close Modal on outside click
+    window.addEventListener('click', (e) => {
+        const modal = document.getElementById('productModal');
+        if (e.target === modal) closeModal();
+    });
+
+    // CRITICAL: Initialize only when DOM is ready
+    document.addEventListener('DOMContentLoaded', () => {
+        renderPage();
+    });
 </script>
 <%- include('partials/footer') %>
 </body>
