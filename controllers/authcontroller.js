@@ -6,21 +6,24 @@ const nodemailer = require("nodemailer");
 
 const SECRET_KEY = process.env.SECRET_KEY || "supersecretkey";
 
-// --- UPDATED: Secure Port 465 Configuration for Render ---
+// --- BULLETPROOF Nodemailer Configuration for Render ---
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
-    port: 465, // Direct SSL port
-    secure: true, // Required for port 465
+    port: 465,
+    secure: true, // Use SSL
     auth: {
         user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS // Ensure this is your 16-digit App Password
+        pass: process.env.EMAIL_PASS
     },
-    family: 4, // Forces IPv4
-    connectionTimeout: 20000, // Increased to 20s for Render
+    // This forces Node.js to use IPv4 instead of IPv6
+    family: 4, 
+    connectionTimeout: 20000,
     greetingTimeout: 20000,
     socketTimeout: 20000,
     tls: {
-        rejectUnauthorized: false // Prevents certificate issues on cloud servers
+        // Essential for cloud hosting providers
+        rejectUnauthorized: false,
+        servername: 'smtp.gmail.com'
     }
 });
 
@@ -156,16 +159,19 @@ const signup = async (req, res) => {
             await newUser.save();
         }
 
-        // Background email sending
+        // Send Email in the background
         transporter.sendMail({
             from: `"FullStack Cafe" <${process.env.EMAIL_USER}>`,
             to: email,
             subject: "Verify your FullStack Cafe Account",
             html: `
-                <div style="font-family: Arial, sans-serif; color: #333;">
-                    <h2>Welcome to FullStack Cafe!</h2>
-                    <p>Your verification code is: <b style="font-size: 1.5em; color: #4a3728;">${otp}</b></p>
-                    <p>This code will expire in 10 minutes.</p>
+                <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+                    <h2 style="color: #4a3728;">Welcome to FullStack Cafe!</h2>
+                    <p>Use the code below to verify your account:</p>
+                    <div style="background: #f7f7f7; padding: 15px; font-size: 24px; font-weight: bold; text-align: center; color: #d4a373; letter-spacing: 5px;">
+                        ${otp}
+                    </div>
+                    <p style="font-size: 12px; color: #888; margin-top: 15px;">Valid for 10 minutes only.</p>
                 </div>
             `
         }).then(() => {
@@ -228,7 +234,7 @@ const login = async (req, res) => {
                 success: false, 
                 message: "Please verify your email before logging in.",
                 isUnverified: true,
-                email: user.email // Send email back so frontend can redirect to verify-otp
+                email: user.email 
             });
         }
 
