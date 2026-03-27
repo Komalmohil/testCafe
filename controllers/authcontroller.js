@@ -3,22 +3,29 @@ const Cart = require("../models/Cart");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
+const dns = require('dns'); // Required to force IPv4
 
 const SECRET_KEY = process.env.SECRET_KEY || "supersecretkey";
 
-// --- FINAL OPTIMIZED Nodemailer Configuration for Render ---
+// --- ULTIMATE IPv4 FORCED CONFIGURATION ---
 const transporter = nodemailer.createTransport({
-    service: 'gmail', // Let Nodemailer handle the host/port/SSL logic
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true, 
     auth: {
         user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS // Ensure this is a 16-digit App Password
+        pass: process.env.EMAIL_PASS 
     },
-    // Adding a very generous timeout for slow cloud networks
-    connectionTimeout: 60000, 
-    greetingTimeout: 60000,
-    socketTimeout: 60000,
+    // This is the "Magic Fix": It forces the DNS to resolve ONLY to IPv4
+    lookup: (hostname, options, callback) => {
+        dns.lookup(hostname, { family: 4 }, callback);
+    },
+    connectionTimeout: 45000, 
+    greetingTimeout: 45000,
+    socketTimeout: 45000,
     tls: {
-        rejectUnauthorized: false // Helps bypass security handshakes on shared servers
+        rejectUnauthorized: false,
+        servername: 'smtp.gmail.com'
     }
 });
 
@@ -154,7 +161,7 @@ const signup = async (req, res) => {
             await newUser.save();
         }
 
-        // Send Email in the background - This prevents the UI from waiting
+        // Background email sending
         transporter.sendMail({
             from: `"FullStack Cafe" <${process.env.EMAIL_USER}>`,
             to: email,
@@ -162,9 +169,9 @@ const signup = async (req, res) => {
             html: `
                 <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
                     <h2 style="color: #4a3728;">FullStack Cafe</h2>
-                    <p>Thank you for signing up! Use the code below to verify your account:</p>
-                    <h1 style="background: #f4f4f4; padding: 10px; text-align: center; color: #d4a373;">${otp}</h1>
-                    <p style="color: #666;">This code expires in 10 minutes.</p>
+                    <p>Verify your account with the code below:</p>
+                    <h1 style="background: #f4f4f4; padding: 15px; text-align: center; color: #d4a373;">${otp}</h1>
+                    <p style="color: #666; font-size: 12px;">This code expires in 10 minutes.</p>
                 </div>
             `
         }).then(() => {
