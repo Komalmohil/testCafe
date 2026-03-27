@@ -1,214 +1,281 @@
 <%- include('../partials/header') %>
-<link rel="stylesheet" href="/css/style.css">
 
-<!-- ✅ TOAST STYLE -->
 <style>
-#toast-container {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 9999;
-}
-.toast {
-    background: #2a2929;
-    color: white;
-    padding: 12px 24px;
-    border-radius: 8px;
-    margin-top: 10px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-    border-left: 5px solid #ffcc00;
-    animation: slideIn 0.4s ease-out, fadeOut 0.5s ease-in 2.5s forwards;
-}
-.toast.success { border-left-color: #28a745; }
-.toast.error { border-left-color: #ff4d4d; }
+    :root {
+        --accent-coffee: #4a3728;
+        --status-green: #2ecc71;
+        --status-orange: #f39c12;
+        --text-main: #2d3748;
+        --text-muted: #718096;
+        --border-color: #e2e8f0;
+        --footer-bg: #0a0a0a;
+        --footer-orange: #ff9900;
+    }
 
-@keyframes slideIn {
-    from { transform: translateX(100%); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
-}
-@keyframes fadeOut {
-    from { opacity: 1; }
-    to { opacity: 0; visibility: hidden; }
-}
-/* ================= FORCE HEADER VISIBILITY ================= */
-header {
-    width: 100%;
-    background: #ffffff !important; /* Force solid white */
-    border-bottom: 1px solid #e2e8f0 !important; /* Light gray bottom border */
-    padding: 15px 0 !important;
-    position: relative;
-    z-index: 1000;
-}
+    body {
+        background-color: #f8fafc;
+        font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
 
-/* Target the Logo */
-header a, 
-header .logo, 
-header .brand-name {
-    color: #4a3728 !important; /* Deep Coffee Brown */
-    text-decoration: none !important;
-    font-weight: 700 !important;
-}
+    /* ================= HEADER & NAV FIXES ================= */
+    header {
+        background: #ffffff !important;
+        border-bottom: 1px solid var(--border-color) !important;
+        padding: 10px 0 !important;
+    }
 
-/* Target all Navigation Links (Menu, Login, Signup) */
-header .nav-link, 
-header nav a, 
-header ul li a {
-    color: #2d3748 !important; /* Dark Slate Gray */
-    font-weight: 500 !important;
-    text-decoration: none !important;
-    margin: 0 15px !important;
-    transition: color 0.2s !important;
-}
+    .nav-links {
+        display: flex;
+        align-items: center;
+        gap: 25px;
+        list-style: none;
+    }
 
-header .nav-link:hover, 
-header nav a:hover {
-    color: #d4a373 !important; /* Tan/Latte color on hover */
-}
+    .logout-btn {
+        background: var(--accent-coffee) !important;
+        color: #fff !important;
+        padding: 8px 20px !important;
+        border-radius: 6px !important; /* Matched to image */
+        font-weight: 600 !important;
+    }
 
-/* Target the Cart text and Icon */
-header .cart-link, 
-header .cart-icon,
-header #cart-count {
-    color: #2d3748 !important;
-}
+    /* ================= LIVE TRACKER DESIGN ================= */
+    .orders-container {
+        max-width: 900px;
+        margin: 40px auto;
+        padding: 0 20px;
+        min-height: 60vh;
+    }
 
-/* If you have a user profile name showing */
-header .user-name {
-    color: #4a3728 !important;
-    font-weight: 600 !important;
-}
+    .order-card {
+        background: #ffffff;
+        border-radius: 12px;
+        border: 1px solid var(--border-color);
+        margin-bottom: 30px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        overflow: hidden;
+    }
+
+    .order-header {
+        padding: 20px;
+        background: #fdfdfd;
+        border-bottom: 1px solid #f1f5f9;
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .tracker-body {
+        padding: 30px 40px;
+    }
+
+    .status-text {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: var(--status-green);
+        margin-bottom: 25px;
+    }
+
+    .progress-track {
+        display: flex;
+        justify-content: space-between;
+        position: relative;
+    }
+
+    .progress-track::before {
+        content: '';
+        position: absolute;
+        top: 8px;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background: #e2e8f0;
+        z-index: 1;
+    }
+
+    .step {
+        position: relative;
+        z-index: 2;
+        text-align: center;
+        width: 20%;
+    }
+
+    .dot {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #cbd5e0;
+        border: 3px solid #fff;
+        margin: 0 auto 10px;
+    }
+
+    .step.completed .dot, .step.active .dot { background: var(--status-orange); }
+    .step.active .dot { transform: scale(1.3); }
+
+    .label {
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: var(--text-muted);
+    }
+
+    /* ================= REORDER BUTTON & ITEMS ================= */
+    .order-items-list { padding: 0 20px 20px; }
+    .item-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        font-size: 0.95rem;
+    }
+
+    .card-footer {
+        padding: 15px 20px;
+        border-top: 1px solid var(--border-color);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .reorder-btn {
+        background: #f0c14b; /* Matched to Amazon-style aesthetic */
+        border: 1px solid #a88734;
+        color: #111;
+        padding: 8px 20px;
+        border-radius: 4px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    /* ================= FOOTER MATCHING IMAGE ================= */
+    footer {
+        background-color: var(--footer-bg) !important;
+        color: #ffffff !important;
+        padding: 60px 20px 20px !important;
+        margin-top: 50px;
+    }
+
+    .footer-container {
+        max-width: 1100px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: 1.5fr 1fr 1fr;
+        gap: 40px;
+    }
+
+    .footer-section h3 {
+        color: var(--footer-orange);
+        font-size: 1.2rem;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .footer-section p, .footer-section a {
+        color: #cccccc;
+        font-size: 0.9rem;
+        text-decoration: none;
+        margin-bottom: 12px;
+        display: block;
+    }
+
+    .footer-section a:hover { color: var(--footer-orange); }
+
+    .copyright-bar {
+        text-align: center;
+        border-top: 1px solid #333;
+        margin-top: 40px;
+        padding-top: 20px;
+        font-size: 0.85rem;
+        color: #888;
+    }
 </style>
 
 <div class="orders-container">
-    <h1 style="margin-bottom: 30px;">
-        <i class="fas fa-history"></i> My Order History
-    </h1>
+    <h1 style="font-weight: 700; margin-bottom: 25px;">Your Orders</h1>
 
     <% if (orders && orders.length > 0) { %>
-
-        <% orders.forEach(order => { %>
-
+        <% orders.forEach(order => { 
+            const statusMap = { 'pending': 0, 'confirmed': 1, 'preparing': 2, 'out for delivery': 3, 'arrived': 4 };
+            const currentStatus = (order.status || 'pending').toLowerCase();
+            const activeIndex = statusMap[currentStatus];
+            const stages = ['Ordered', 'Confirmed', 'Preparing', 'Out for Delivery', 'Arrived'];
+        %>
             <div class="order-card">
-
                 <div class="order-header">
-                    <div>
-                        <strong>
-                            Order #<%= order._id.toString().slice(-6).toUpperCase() %>
-                        </strong>
-
-                        <div style="font-size:0.8rem;color:#999; margin-top: 5px;">
-                            <i class="far fa-clock"></i> 
-                            <%= order.createdAt 
-                                ? new Date(order.createdAt).toLocaleString() 
-                                : "N/A" %>
-                        </div>
-                    </div>
-
-                    <span class="status-badge status-<%= (order.status || 'pending').toLowerCase() %>">
-                        <%= order.status || "Pending" %>
-                    </span>
+                    <span><strong>ORDER PLACED:</strong> <%= new Date(order.createdAt).toLocaleDateString() %></span>
+                    <span><strong>TOTAL:</strong> ₹<%= parseFloat(order.totalAmount || 0).toFixed(2) %></span>
+                    <span style="color: var(--text-muted);">ID #<%= order._id.toString().slice(-6).toUpperCase() %></span>
                 </div>
 
-                <ul class="order-items">
-                    <% if (order.items && order.items.length > 0) { %>
-                        <% order.items.forEach(item => { %>
-                            <li class="item-row">
-                                <span>
-                                    <i class="fas fa-utensils" style="opacity:0.5;"></i>
-                                    <%= item.name %> (x<%= item.quantity %>)
-                                </span>
-
-                                <span>
-                                    ₹<%= (item.price * item.quantity).toFixed(2) %>
-                                </span>
-                            </li>
+                <div class="tracker-body">
+                    <div class="status-text">Status: <%= order.status || 'Pending' %></div>
+                    <div class="progress-track">
+                        <% stages.forEach((stage, index) => { %>
+                            <div class="step <%= index <= activeIndex ? (index === activeIndex ? 'active' : 'completed') : '' %>">
+                                <div class="dot"></div>
+                                <div class="label"><%= stage %></div>
+                            </div>
                         <% }) %>
-                    <% } else { %>
-                        <li>No items found</li>
-                    <% } %>
-                </ul>
-
-                <div class="order-footer">
-
-                    <!-- ✅ REORDER BUTTON -->
-                    <button 
-                        class="reorder-btn" 
-                        onclick="reorder('<%= order._id %>', this)"
-                    >
-                        <i class="fas fa-redo-alt"></i> Reorder
-                    </button>
-
-                    <div class="total-amt">
-                        Total: <strong>₹<%= parseFloat(order.totalAmount || 0).toFixed(2) %></strong>
                     </div>
-
                 </div>
 
+                <div class="order-items-list">
+                    <% order.items.forEach(item => { %>
+                        <div class="item-row">
+                            <span><%= item.name %> x<%= item.quantity %></span>
+                            <span>₹<%= (item.price * item.quantity).toFixed(2) %></span>
+                        </div>
+                    <% }) %>
+                </div>
+
+                <div class="card-footer">
+                    <button class="reorder-btn" onclick="handleReorder('<%= order._id %>', this)">
+                        Reorder
+                    </button>
+                    <span style="font-size: 0.8rem; color: var(--text-muted);">Payment: Cash on Delivery</span>
+                </div>
             </div>
-
         <% }) %>
-
-    <% } else { %>
-
-        <div class="empty-msg">
-            <h2>No orders found!</h2>
-            <a href="/products">Browse Menu</a>
-        </div>
-
     <% } %>
 </div>
 
-<!-- ✅ TOAST CONTAINER -->
-<div id="toast-container"></div>
+<footer>
+    <div class="footer-container">
+        <div class="footer-section">
+            <h3><i class="fas fa-coffee"></i> FullStack Cafe</h3>
+            <p>Fresh coffee & delicious food delivered to you.</p>
+        </div>
+        <div class="footer-section">
+            <h3>Quick Links</h3>
+            <a href="/products">Products</a>
+            <a href="/support">Support</a>
+            <a href="/login">Login</a>
+        </div>
+        <div class="footer-section">
+            <h3>Contact</h3>
+            <p>Email: support@fullstackcafe.com</p>
+            <p>Phone: +91 9876543210</p>
+        </div>
+    </div>
+    <div class="copyright-bar">
+        © 2026 FullStack Cafe. All rights reserved.
+    </div>
+</footer>
 
 <script>
-function showToast(message, type = "success") {
-    const container = document.getElementById("toast-container");
-
-    const toast = document.createElement("div");
-    toast.className = "toast " + type;
-    toast.innerText = message;
-
-    container.appendChild(toast);
-
-    setTimeout(() => toast.remove(), 3000);
-}
-
-/* ================= ✅ FIXED REORDER ================= */
-async function reorder(orderId, btn) {
+async function handleReorder(orderId, btn) {
     try {
         btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
-
-        const res = await fetch(`/products/reorder/${orderId}`, {
-            method: "POST"
-        });
-
-        const data = await res.json(); // ✅ IMPORTANT FIX
-
+        btn.innerText = 'Adding...';
+        const res = await fetch(`/products/reorder/${orderId}`, { method: "POST" });
+        const data = await res.json();
         if (data.success) {
-
-            // ✅ MOST IMPORTANT FIX: update localStorage
             localStorage.setItem("cafe_cart", JSON.stringify(data.items));
-
-            showToast("✅ Items added to cart!");
-
-            setTimeout(() => {
-                window.location.href = "/cart";
-            }, 1200);
-
-        } else {
-            showToast("❌ Failed to reorder", "error");
+            window.location.href = "/products/cart";
         }
-
     } catch (err) {
         console.error(err);
-        showToast("❌ Reorder failed. Try again.", "error");
-
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-redo-alt"></i> Reorder';
+        btn.innerText = 'Reorder';
     }
 }
 </script>
-
-<%- include('../partials/footer') %>

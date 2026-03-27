@@ -46,7 +46,7 @@
         .cart-qty-val { font-weight: bold; min-width: 20px; text-align: center; }
 
         .delete-item-btn {
-            color: #ff4d4d;
+            color: #1f1d1d;
             cursor: pointer;
             font-size: 1.2rem;
             transition: 0.2s;
@@ -62,6 +62,7 @@
 <div id="app-content">
     <%# Pass server-side cart to frontend safely %>
     <script>
+        // Use productId instead of name for mapping to ensure uniqueness
         window.SERVER_CART = <%- JSON.stringify(cart) %>;
         window.IS_LOGGED_IN = <%= (user ? true : false) %>;
     </script>
@@ -102,64 +103,62 @@
 
 <script>
 (function() {
-    // 1. Initialize cart from Server Data (Priority) or LocalStorage
+    // 1. Initialize cart
     let currentCart = (window.SERVER_CART && window.SERVER_CART.length > 0) 
-                      ? window.SERVER_CART 
-                      : JSON.parse(localStorage.getItem('cafe_cart')) || [];
+                    ? window.SERVER_CART 
+                    : JSON.parse(localStorage.getItem('cafe_cart')) || [];
 
-    const saveCartState = async (cart) => {
+    const saveCartState = (cart) => {
         currentCart = cart;
         localStorage.setItem('cafe_cart', JSON.stringify(cart));
         
-        // Update header badge if function exists
+        // Update global badge immediately
         if (typeof window.updateCartBadge === 'function') {
-            window.updateCartBadge();
+            // Calculate total quantity for the badge
+            const totalQty = currentCart.reduce((sum, item) => sum + (item.quantity || 1), 0);
+            window.updateCartBadge(totalQty);
         }
-
-        // If user is logged in, sync with DB via your updateQuantity/removeItem routes
         renderCart();
     };
 
-    window.updateCartQty = async (name, delta) => {
-        const item = currentCart.find(i => i.name === name);
+    // Helper to sync whole cart to server
+    const syncWithServer = async () => {
+        if (!window.IS_LOGGED_IN) return;
+        try {
+            const response = await fetch('/cart/sync', { 
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cartItems: currentCart })
+            });
+            const data = await response.json();
+            
+            // If server returns a fresh count, use it
+            if(data.success && data.cartCount !== undefined) {
+                window.updateCartBadge(data.cartCount);
+            }
+        } catch (err) {
+            console.error("Server sync failed", err);
+        }
+    };
+
+    window.updateCartQty = async (productId, delta) => {
+        const item = currentCart.find(i => (i.productId || i._id) === productId);
         if (!item) return;
 
-        const action = delta > 0 ? 'inc' : 'dec';
-        
-        // Optimistic UI update
-        if (action === 'dec' && item.quantity === 1) {
-            window.removeFromCart(name);
+        if (delta < 0 && item.quantity <= 1) {
+            window.removeFromCart(productId);
             return;
         }
 
         item.quantity += delta;
         saveCartState(currentCart);
-
-        // Sync with backend
-        try {
-            await fetch('/products/update-quantity', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, action })
-            });
-        } catch (err) {
-            console.error("Sync failed", err);
-        }
+        await syncWithServer();
     };
 
-    window.removeFromCart = async (name) => {
-        currentCart = currentCart.filter(i => i.name !== name);
+    window.removeFromCart = async (productId) => {
+        currentCart = currentCart.filter(i => (i.productId || i._id) !== productId);
         saveCartState(currentCart);
-
-        try {
-            await fetch('/products/remove-item', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name })
-            });
-        } catch (err) {
-            console.error("Remove failed", err);
-        }
+        await syncWithServer();
     };
 
     const renderCart = () => {
@@ -181,6 +180,7 @@
         summarySection.style.display = 'block';
 
         wrapper.innerHTML = currentCart.map((item) => {
+            const pId = item.productId || item._id;
             const itemTotal = item.price * item.quantity;
             subtotal += itemTotal;
 
@@ -192,14 +192,14 @@
                         <div style="color: #666;">₹${item.price}</div>
                     </div>
                     <div class="cart-qty-controls">
-                        <button class="cart-qty-btn" onclick="updateCartQty('${item.name}', -1)">-</button>
+                        <button class="cart-qty-btn" onclick="updateCartQty('${pId}', -1)">-</button>
                         <span class="cart-qty-val">${item.quantity}</span>
-                        <button class="cart-qty-btn" onclick="updateCartQty('${item.name}', 1)">+</button>
+                        <button class="cart-qty-btn" onclick="updateCartQty('${pId}', 1)">+</button>
                     </div>
                     <div style="font-weight:bold; width:80px; text-align:right; color: var(--main);">
                         ₹${itemTotal.toFixed(2)}
                     </div>
-                    <button onclick="removeFromCart('${item.name}')" class="delete-item-btn">
+                    <button onclick="removeFromCart('${pId}')" class="delete-item-btn">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -212,16 +212,25 @@
         document.getElementById('cartGrandTotal').innerText = "₹" + (subtotal + tax).toFixed(2);
     };
 
-    // Checkout Logic
+    /* ================= UPDATED CHECKOUT WITH TOAST ================= */
     document.getElementById('checkoutBtn').addEventListener('click', async () => {
         if (!window.IS_LOGGED_IN) {
-            alert("Please login to place an order.");
-            window.location.href = "/login";
+            Toastify({
+                text: "Please login to place an order.",
+                duration: 3000,
+                gravity: "top",
+                position: "right",
+                style: { background: "#ff4757", borderRadius: "10px" }
+            }).showToast();
+            setTimeout(() => window.location.href = "/login", 1500);
             return;
         }
 
+        const btn = document.getElementById('checkoutBtn');
+        btn.disabled = true;
+        btn.innerText = "Processing...";
+
         try {
-            // Using the confirm route from your existing setup
             const res = await fetch("/cart/confirm", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -229,22 +238,50 @@
             });
 
             const data = await res.json();
+            
             if (data.success) {
-                alert("Order placed successfully!");
+                // SUCCESS TOAST
+                Toastify({
+                    text: "🚀 Order placed successfully!",
+                    duration: 4000,
+                    gravity: "top",
+                    position: "right",
+                    stopOnFocus: true,
+                    style: {
+                        background: "linear-gradient(to right, #00b09b, #96c93d)",
+                        borderRadius: "12px",
+                        fontWeight: "bold"
+                    }
+                }).showToast();
+
                 localStorage.removeItem("cafe_cart");
-                window.location.href = "/products/my-orders";
+                
+                // Redirect after toast shows for a bit
+                setTimeout(() => {
+                    window.location.href = "/products/my-orders";
+                }, 2000);
+
             } else {
-                alert(data.message || "Checkout failed");
+                Toastify({
+                    text: "❌ " + (data.message || "Checkout failed"),
+                    duration: 4000,
+                    style: { background: "#ff4757", borderRadius: "10px" }
+                }).showToast();
+                btn.disabled = false;
+                btn.innerText = "Confirm Order (COD)";
             }
         } catch (err) {
-            alert("Connection error. Please try again.");
+            Toastify({
+                text: "⚠️ Connection error. Please check your internet.",
+                duration: 4000,
+                style: { background: "#ffa502", borderRadius: "10px" }
+            }).showToast();
+            btn.disabled = false;
+            btn.innerText = "Confirm Order (COD)";
         }
     });
 
-    // Initial Sync & Render
-    localStorage.setItem('cafe_cart', JSON.stringify(currentCart));
     renderCart();
-
 })();
 </script>
 </div>

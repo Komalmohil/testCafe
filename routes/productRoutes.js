@@ -6,7 +6,7 @@ const productController = require("../controllers/productController");
 const orderController = require("../controllers/ordercontroller");
 
 /* ================= AUTH MIDDLEWARE ================= */
-const { requireAuth } = require("../middleware/authMiddleware");
+const { requireAuth } = require("../middleware/authmiddleware");
 
 /* =====================================================
    PRODUCTS & MENU

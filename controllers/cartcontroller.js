@@ -4,7 +4,6 @@ const Product = require("../models/product");
 /* ================= CART PAGE ================= */
 exports.getCartPage = async (req, res) => {
     try {
-        // If user is not logged in, pass an empty cart array
         if (!req.user) {
             return res.render("cart", { 
                 user: null, 
@@ -12,7 +11,6 @@ exports.getCartPage = async (req, res) => {
             });
         }
 
-        // Fetch the actual cart from DB for logged-in users
         const userCart = await Cart.findOne({ user: req.user._id });
 
         res.render("cart", { 
@@ -35,7 +33,6 @@ exports.addToCart = async (req, res) => {
             return res.status(400).json({ success: false, message: "Invalid product data" });
         }
 
-        // Check stock from DB
         const product = await Product.findById(id);
         if (!product) {
             return res.status(404).json({ success: false, message: "Product not found" });
@@ -48,12 +45,10 @@ exports.addToCart = async (req, res) => {
             });
         }
 
-        // Guest mode: frontend handles LocalStorage, server just validates
         if (!req.user) {
             return res.json({ success: true, guest: true });
         }
 
-        // Logged-in user cart logic
         const userId = req.user._id;
         let cart = await Cart.findOne({ user: userId });
 
@@ -70,7 +65,7 @@ exports.addToCart = async (req, res) => {
                 if (newQty > product.stock) {
                     return res.json({ 
                         success: false, 
-                        message: `Cannot add more. You already have ${cart.items[itemIndex].quantity} in cart and only ${product.stock} are available.` 
+                        message: `Cannot add more. You have ${cart.items[itemIndex].quantity} in cart and only ${product.stock} available.` 
                     });
                 }
                 cart.items[itemIndex].quantity = newQty;
@@ -90,12 +85,34 @@ exports.addToCart = async (req, res) => {
 
         res.json({ 
             success: true, 
-            cartCount: totalItems 
+            cartCount: totalItems,
+            items: cart.items // Returning items helps frontend stay in sync
         });
 
     } catch (err) {
         console.error("Add to Cart Error:", err);
         res.status(500).json({ success: false, message: "Internal Server Error" });
+    }
+};
+
+/* ================= DELETE FROM CART ================= */
+// NEW: Added this to handle explicit deletions from the DB
+exports.removeFromCart = async (req, res) => {
+    try {
+        if (!req.user) return res.status(401).json({ success: false, message: "Unauthorized" });
+
+        const { productId } = req.body;
+        let cart = await Cart.findOne({ user: req.user._id });
+
+        if (cart) {
+            cart.items = cart.items.filter(item => item.productId.toString() !== productId);
+            await cart.save();
+        }
+
+        res.json({ success: true, cartCount: cart ? cart.items.length : 0 });
+    } catch (err) {
+        console.error("Remove Error:", err);
+        res.status(500).json({ success: false });
     }
 };
 
@@ -107,32 +124,16 @@ exports.syncCart = async (req, res) => {
         }
 
         const { cartItems } = req.body;
-        if (!Array.isArray(cartItems)) {
-            return res.status(400).json({ success: false, message: "Invalid cart data" });
-        }
-
-        // Validate stock for each item before saving
-        for (const item of cartItems) {
-            if (!item.productId || !item.quantity) continue;
-
-            const product = await Product.findById(item.productId);
-            if (!product) continue;
-
-            if (item.quantity > product.stock) {
-                return res.json({
-                    success: false,
-                    message: `Stock changed for ${product.name}. Only ${product.stock} available.`
-                });
-            }
-        }
-
+        
+        // If frontend sends an empty array, it means the user deleted everything.
+        // We must respect that and empty the DB cart too.
         let cart = await Cart.findOne({ user: req.user._id });
 
         if (cart) {
-            cart.items = cartItems;
+            cart.items = cartItems || [];
             await cart.save();
         } else {
-            cart = await Cart.create({ user: req.user._id, items: cartItems });
+            cart = await Cart.create({ user: req.user._id, items: cartItems || [] });
         }
 
         res.json({ success: true, items: cart.items });

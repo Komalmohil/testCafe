@@ -32,7 +32,7 @@
             <li>
                 <a href="/products/cart" class="cart-icon">
                     🛒 Cart
-                    <span class="badge" id="cart-count">0</span>
+                    <span class="badge cart-count-badge" id="cart-count">0</span>
                 </a>
             </li>
         </ul>
@@ -112,13 +112,23 @@
 
 <script>
 (function() {
-    /* ================= CART LOGIC ================= */
-    window.updateCartBadge = () => {
+    /* ================= CART UI UPDATE ================= */
+    // This function now only handles INITIAL loading and synchronization
+    window.updateCartBadge = (count) => {
         const cartCountElement = document.getElementById("cart-count");
         if (!cartCountElement) return;
-        const localCart = JSON.parse(localStorage.getItem('cafe_cart')) || [];
-        const totalItems = localCart.reduce((sum, item) => sum + (item.quantity || 1), 0);
+
+        let totalItems;
+        if (count !== undefined) {
+            totalItems = count;
+        } else {
+            const localCart = JSON.parse(localStorage.getItem('cafe_cart')) || [];
+            totalItems = localCart.reduce((sum, item) => sum + (item.quantity || 1), 0);
+        }
+
         cartCountElement.innerText = totalItems;
+        
+        // Quick animation
         cartCountElement.style.transform = "scale(1.3)";
         setTimeout(() => cartCountElement.style.transform = "scale(1)", 200);
     };
@@ -128,10 +138,7 @@
     const userId = "<%= (typeof user !== 'undefined' && user) ? user._id : '' %>";
 
     if (userId) {
-        // Join the private room for this user
         socket.emit('join', userId);
-
-        // Listen for Order Updates from Admin
         socket.on('orderUpdate', (data) => {
             Toastify({
                 text: data.message,
@@ -139,61 +146,23 @@
                 close: true,
                 gravity: "top", 
                 position: "right", 
-                stopOnFocus: true, 
                 style: {
                     background: data.status === "Delivered" ? "#28a745" : "#4a3728",
                     borderRadius: "12px",
-                    fontWeight: "600",
-                    boxShadow: "0 10px 20px rgba(0,0,0,0.1)"
                 },
-                onClick: function(){
-                    window.location.href = "/products/my-orders";
-                } 
+                onClick: function(){ window.location.href = "/products/my-orders"; } 
             }).showToast();
 
-            // Play notification sound
             const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-            audio.play().catch(e => console.log("Audio play blocked by browser"));
+            audio.play().catch(e => console.log("Audio play blocked"));
         });
     }
 
+    /* ================= INITIALIZATION ================= */
     document.addEventListener("DOMContentLoaded", () => {
+        // Only load initial badge state. 
+        // We REMOVED the 'click' listener here because it is already in cart.js!
         window.updateCartBadge();
-
-        document.addEventListener("click", async (e) => {
-            const btn = e.target.closest(".add-to-cart-btn");
-            if (!btn) return;
-
-            const name = btn.getAttribute("data-name");
-            const price = btn.getAttribute("data-price");
-            const image = btn.getAttribute("data-image");
-            const id = btn.getAttribute("data-id");
-
-            try {
-                const res = await fetch("/products/add-to-cart", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ id, name, price, image })
-                });
-
-                const data = await res.json();
-                if (data.success) {
-                    let localCart = JSON.parse(localStorage.getItem('cafe_cart')) || [];
-                    const existingItem = localCart.find(item => item.id === id);
-
-                    if (existingItem) {
-                        existingItem.quantity += 1;
-                    } else {
-                        localCart.push({ id, name, price, image, quantity: 1 });
-                    }
-                    
-                    localStorage.setItem('cafe_cart', JSON.stringify(localCart));
-                    window.updateCartBadge();
-                }
-            } catch (err) {
-                console.error("Header Cart Sync Error:", err);
-            }
-        });
 
         window.addEventListener('storage', (e) => {
             if (e.key === 'cafe_cart') window.updateCartBadge();
