@@ -114,6 +114,7 @@ const requireAdmin = (req, res, next) => {
 
 /* ================= SIGNUP & OTP LOGIC (FIXED) ================= */
 const signup = async (req, res) => {
+    
     try {
         let { name, email, password } = req.body;
 
@@ -152,43 +153,39 @@ const signup = async (req, res) => {
             });
             await newUser.save();
         }
-
         /* ===== SEND OTP EMAIL (Resend API) ===== */
+        console.log("🔍 Sending OTP to:", email);
+        console.log("🔍 RESEND_API_KEY exists:", !!process.env.RESEND_API_KEY);
+
         try {
             const response = await resend.emails.send({
                 from: "FullStack Cafe <onboarding@resend.dev>",
                 to: email,
                 subject: "Verify your FullStack Cafe Account",
-                html: `
-                    <div style="font-family: Arial; padding: 20px;">
-                        <h2>FullStack Cafe</h2>
-                        <p>Your OTP is:</p>
-                        <h1>${otp}</h1>
-                        <p>Expires in 10 minutes</p>
-                    </div>
-                `
+                html: `<div style="font-family: Arial; padding: 20px;"><h2>FullStack Cafe</h2><p>Your OTP is:</p><h1>${otp}</h1><p>Expires in 10 minutes</p></div>`
             });
 
-            console.log("OTP sent via Resend API - Full Response:", JSON.stringify(response, null, 2));
-            console.log("OTP sent via Resend API - Status:", response.id ? "SUCCESS" : "UNKNOWN");
-
-            return res.json({
-                success: true,
-                message: "OTP sent successfully",
-                email
-            });
+            // BETTER LOGGING - This will show EXACT problem
+            console.log("🔍 FULL Resend Response:", JSON.stringify(response, null, 2));
+            console.log("🔍 Response ID:", response?.id);
+            console.log("🔍 Response Status:", response?.status);
+            
+            if (response?.id) {
+                return res.json({ success: true, message: "OTP sent successfully", email });
+            } else {
+                throw new Error("No response ID received from Resend");
+            }
 
         } catch (emailError) {
-            console.error("❌ RESEND EMAIL ERROR:", {
+            console.error("❌ RESEND FULL ERROR:", emailError);
+            console.error("❌ RESEND ERROR DETAILS:", {
                 message: emailError.message,
                 code: emailError.code,
-                statusCode: emailError.statusCode,
-                response: emailError.response?.data
+                statusCode: emailError.statusCode
             });
-
-            return res.status(500).json({
-                success: false,
-                message: "Failed to send OTP. Please check Resend configuration."
+            return res.status(500).json({ 
+                success: false, 
+                message: "Failed to send OTP. Check server logs." 
             });
         }
 
