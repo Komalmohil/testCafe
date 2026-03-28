@@ -169,7 +169,7 @@ const signup = async (req, res) => {
                 `
             });
 
-            console.log("OTP sent via Resend API:", response.id || response.messageId || "sent");
+            console.log("OTP sent via Resend API:", response.id || response.messageId || response.data || "sent");
 
             return res.json({
                 success: true,
@@ -178,11 +178,16 @@ const signup = async (req, res) => {
             });
 
         } catch (emailError) {
-            console.error("❌ EMAIL ERROR:", emailError);
+            console.error("❌ RESEND EMAIL ERROR:", {
+                message: emailError.message,
+                code: emailError.code,
+                statusCode: emailError.statusCode,
+                response: emailError.response?.data
+            });
 
             return res.status(500).json({
                 success: false,
-                message: "Failed to send OTP. Check Resend API key/configuration."
+                message: "Failed to send OTP. Please check Resend configuration."
             });
         }
 
