@@ -156,7 +156,7 @@ const signup = async (req, res) => {
         /* ===== SEND OTP EMAIL (Resend API) ===== */
         try {
             const response = await resend.emails.send({
-                from: "FullStack Cafe <no-reply@fullstackcafe.com>",
+                from: "FullStack Cafe <onboarding@resend.dev>",
                 to: email,
                 subject: "Verify your FullStack Cafe Account",
                 html: `
