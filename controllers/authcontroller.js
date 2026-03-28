@@ -169,7 +169,8 @@ const signup = async (req, res) => {
                 `
             });
 
-            console.log("OTP sent via Resend API:", response.id || response.messageId || response.data || "sent");
+            console.log("OTP sent via Resend API - Full Response:", JSON.stringify(response, null, 2));
+            console.log("OTP sent via Resend API - Status:", response.id ? "SUCCESS" : "UNKNOWN");
 
             return res.json({
                 success: true,

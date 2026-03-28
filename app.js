@@ -109,7 +109,11 @@ app.use("/cart", require("./routes/cartRoutes"));
 app.get("/ping-email", (req, res) => {
   try {
     require("resend");
-    res.json({ resendPresent: true, resendKey: !!process.env.RESEND_API_KEY });
+    res.json({
+      resendPresent: true,
+      resendKey: !!process.env.RESEND_API_KEY,
+      resendKeyLength: process.env.RESEND_API_KEY?.length
+    });
   } catch (e) {
     res.status(500).json({ resendPresent: false, error: e.message });
   }
