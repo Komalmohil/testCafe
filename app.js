@@ -100,10 +100,20 @@ app.use((req, res, next) => {
 /* ================= ROUTES ================= */
 app.use("/", require("./routes/authroutes"));
 app.get("/", (req, res) => res.redirect("/products"));
-app.use("/support", require("./routes/supportroutes"));
+// app.use("/support", require("./routes/supportroutes")); // Temporarily disabled - file not committed
 app.use("/products", require("./routes/productRoutes"));
 app.use("/admin", require("./routes/adminroute"));
 app.use("/cart", require("./routes/cartRoutes"));
+
+// Debug route to check Resend module
+app.get("/ping-email", (req, res) => {
+  try {
+    require("resend");
+    res.json({ resendPresent: true, resendKey: !!process.env.RESEND_API_KEY });
+  } catch (e) {
+    res.status(500).json({ resendPresent: false, error: e.message });
+  }
+});
 
 /* ================= ERROR HANDLERS ================= */
 app.use((req, res) => {
@@ -118,4 +128,16 @@ app.use((err, req, res, next) => {
 /* ================= START SERVER ================= */
 server.listen(PORT, () => {
     console.log(`✅ Server & Socket running at http://localhost:${PORT}`);
+});
+
+app.get("/ping-email", (req, res) => {
+  try {
+    const { Resend } = require("resend");
+    return res.json({
+      resendPresent: true,
+      resendKey: !!process.env.RESEND_API_KEY
+    });
+  } catch (error) {
+    return res.status(500).json({ resendPresent: false, error: error.message });
+  }
 });
